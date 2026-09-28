@@ -27,6 +27,6 @@ export default defineConfig({
     command: 'node .output/server/index.mjs',
     url: 'http://127.0.0.1:4178/sign-in',
     reuseExistingServer: false,
-    env: { HOST: '127.0.0.1', PORT: '4178', NUXT_OWNER_USER_ID: process.env.E2E_CLERK_USER_ID ?? '', NUXT_DATABASE_PATH: join(tmpdir(), `worthwhile-e2e-${randomUUID()}`, 'plan.sqlite') },
+    env: { HOST: '127.0.0.1', PORT: '4178', NUXT_DATABASE_PATH: join(tmpdir(), `worthwhile-e2e-${randomUUID()}`, 'plan.sqlite') },
   },
 })

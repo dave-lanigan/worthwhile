@@ -1,6 +1,6 @@
 # Worthwhile
 
-A single-user net worth estimator built with Nuxt 4, TypeScript, shadcn-vue, Unovis, and Turso (libSQL), with local SQLite storage available for offline use and tests.
+A net worth estimator with private plans for each Clerk account, built with Nuxt 4, TypeScript, shadcn-vue, Unovis, and Turso (libSQL), with local SQLite storage available for development and tests.
 
 ## Run
 
@@ -20,17 +20,17 @@ npm run build
 npm start
 ```
 
-Both scripts bind to `127.0.0.1`. Clerk authenticates visitors, and only one explicitly configured account can read or save the plan. Local runs reject nonlocal hosts; Vercel deployments accept hosted HTTPS same-origin requests. This is not a multi-user application.
+Both scripts bind to `127.0.0.1`. Clerk authenticates visitors, and each signed-in account can read and save only its own plan. Local runs reject nonlocal hosts; Vercel deployments accept hosted HTTPS same-origin requests.
 
 ## Authentication
 
 The Clerk Nuxt module uses `NUXT_PUBLIC_CLERK_PUBLISHABLE_KEY` and the server-only `NUXT_CLERK_SECRET_KEY`. Obtain development keys through `npx clerk@latest env pull`; never commit them. The current project has been linked to the Worthwhile development application.
 
-Sign up at `/sign-up`, then copy your account ID from the locked-plan screen into the server-only `NUXT_OWNER_USER_ID` environment variable and restart the app. Until an owner is configured, no signed-in account can access the saved plan. Other accounts remain forbidden even if they can sign up. Authentication does not modify, migrate, or assign ownership of existing financial data automatically.
+Sign up at `/sign-up` or sign in at `/sign-in`. Every authenticated account can use the estimator immediately, with no account-ID configuration. Each account starts with an empty plan and has independent saved data and revisions.
 
-The account menu provides sign-out. The estimator page redirects signed-out visitors to `/sign-in`; both plan API handlers independently enforce the owner check before accessing storage. Plan responses are not cached, and changing accounts clears cached responses and recreates the page.
+`/` is the public main estimator page: signed-out visitors can use an empty, temporary forecast immediately without a login redirect. Sign-in is optional and loads the account's private saved plan; successful sign-in returns to `/`. Signing out returns to the public estimator with an empty draft. Both plan API handlers obtain the account ID from the verified Clerk session, never from request parameters. Plan responses are not cached, and changing accounts clears cached responses and recreates the page.
 
-Choose **Continue without signing in** on either authentication page to open `/guest`. Guest mode starts with an empty, editable forecast held only in page memory. It never reads or writes the saved plan, and changes are discarded when leaving or reloading the page. Signing in does not import a guest draft. The saved-plan API remains owner-only.
+Choose **Continue without signing in** on either authentication page to open `/guest`. Guest mode starts with an empty, editable forecast held only in page memory. It never reads or writes saved plans, and changes are discarded when leaving or reloading the page. Signing in does not import a guest draft. The saved-plan API requires authentication.
 
 ## Deploy to Vercel
 
@@ -43,13 +43,12 @@ Choose **Continue without signing in** on either authentication page to open `/g
 | `NUXT_CLERK_SECRET_KEY` | Matching Clerk secret key; server-only |
 | `NUXT_PUBLIC_CLERK_SIGN_IN_URL` | `/sign-in` |
 | `NUXT_PUBLIC_CLERK_SIGN_UP_URL` | `/sign-up` |
-| `NUXT_OWNER_USER_ID` | Owner's Clerk `user_...` ID in that instance; server-only |
 | `TURSO_DB_URL` | Remote `libsql://...turso.io` URL |
 | `TURSO_DB_TOKEN` | Database token with read/write permissions; server-only |
 
-3. Configure a Clerk production instance for your production domain and complete Clerk's domain/DNS setup. Use its production key pair for Vercel Production. Set Preview variables separately, using a development Clerk instance and a separate Turso database so preview saves cannot change production finances. Owner IDs are specific to the Clerk instance. Only `NUXT_OWNER_USER_ID` can read or save the single shared plan.
+3. Configure a Clerk production instance for your production domain and complete Clerk's domain/DNS setup. Use its production key pair for Vercel Production. Set Preview variables separately, using a development Clerk instance and a separate Turso database so preview saves cannot change production finances. Account IDs are specific to the Clerk instance.
 4. Deploy. Vercel supplies `VERCEL=1`, enabling hosted requests. Cross-origin requests and non-JSON writes remain blocked. Do not set `NUXT_DATABASE_PATH` on Vercel: the app requires remote Turso and refuses local filesystem storage. The table is created automatically; existing local data is not migrated or uploaded.
-5. Verify the deployed URL: signed-out users reach sign-in and `/api/plan` returns 401; the configured owner can save and reload; another account receives 403. A missing owner ID blocks authenticated requests with 503. Verify persistence in the isolated Preview database before using Production. Redeploy after changing environment variables.
+5. Verify the deployed URL: signed-out users reach the usable estimator at `/` without signing in, while `/api/plan` returns 401; each signed-in account can save and reload its own plan without seeing another account's data. Verify persistence in the isolated Preview database before using Production. Redeploy after changing environment variables.
 
 Check the deployment artifact locally with `npm run build:vercel`; output is generated under `.vercel/output`. Use `npm run build` again before running the standalone server or browser tests. These build commands do not perform a live deployment or remote database migration. Vercel's ephemeral filesystem is never used for hosted financial data.
 
@@ -86,6 +85,8 @@ TURSO_DB_TOKEN=your-database-auth-token
 
 Both `npm run dev` and `npm start` load `.env`; credentials are read at runtime and are not bundled into the client or build. Both scripts enable Node's system certificate trust without disabling TLS verification. Restart the server after changing credentials. The plan table is created automatically, and the application validates documents and saves them transactionally. A revision check prevents silent overwrites from another browser tab; a conflict requires reloading the saved plan. Connection errors are reported, never silently redirected to local storage.
 
+Account plans are stored in `user_plan`, keyed by the verified Clerk user ID. An older unassigned `plan` table is left intact but is not read by account sessions or automatically claimed by a new signup. Restoring that data to a specific account requires an explicit migration. Rolling back to the older application leaves the new account table intact, but the older application will not see its data; do not run the old shared-plan version publicly.
+
 Without Turso settings, storage defaults to `.data/networth.sqlite`, relative to the directory where the server is started. Set `NUXT_DATABASE_PATH=/absolute/path/plan.sqlite` to explicitly select local SQLite even when Turso credentials are present. Tests use this override so they never write to Turso. Existing SQLite files remain compatible and untouched when switching to Turso, but their data is not automatically copied. To return to the previous local database, set this override and restart; changes saved only to Turso will not appear locally.
 
 Database files, SQLite sidecars, generated files, and `.env` are excluded from Git. No personal or demo records are included. Keep the Turso token private. Local financial data is not encrypted at rest; protect it with your operating-system account and disk encryption. Manage remote backups and recovery through Turso.
@@ -102,6 +103,6 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-Unit tests cover financial invariants, negative returns, exact allocation, payoff, deficit recovery, SQLite persistence, revision conflicts, corrupt documents, request guards, and owner authorization. Browser tests start the production server on `127.0.0.1:4178` with a separate temporary SQLite database and refuse to reuse an existing server on that port. Signed-out checks run with Clerk development keys alone. Authenticated tests require `E2E_CLERK_USER_ID` and `E2E_CLERK_USER_EMAIL` for a dedicated development account; the non-owner check also requires `E2E_CLERK_OTHER_EMAIL` for a different account. These tests are explicitly skipped when their accounts are not configured. The test server overrides the real plan owner and storage settings, and no test accounts are created automatically. Screenshots go into the ignored `test-results` directory; traces are disabled to avoid recording session credentials.
+Unit tests cover financial invariants, negative returns, exact allocation, payoff, deficit recovery, SQLite persistence, per-account revision conflicts, corrupt documents, request guards, session-based API access, and account isolation. Browser tests start the production server on `127.0.0.1:4178` with a separate temporary SQLite database and refuse to reuse an existing server on that port. Signed-out and guest checks run with Clerk development keys alone. Authenticated tests require `E2E_CLERK_USER_EMAIL` for a dedicated development account; the account-isolation check also requires `E2E_CLERK_OTHER_EMAIL` for a different account. These tests are explicitly skipped when their accounts are not configured. The test server overrides storage settings, and no test accounts are created automatically. Screenshots go into the ignored `test-results` directory; traces are disabled to avoid recording session credentials.
 
 On networks using certificates trusted by macOS but not Node's bundled store, prefix browser/component downloads with `NODE_USE_SYSTEM_CA=1`. Do not disable TLS verification. TypeScript is pinned to 5.9.3 for compatibility with the Vue typechecker.

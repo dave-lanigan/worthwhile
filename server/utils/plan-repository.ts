@@ -13,31 +13,32 @@ export async function createPlanRepository(connection: string | Config) {
     ? { url: connection === ':memory:' ? connection : pathToFileURL(resolve(connection)).href }
     : connection)
   try {
-    await database.execute('CREATE TABLE IF NOT EXISTS plan (id INTEGER PRIMARY KEY CHECK (id = 1), schema_version INTEGER NOT NULL, revision INTEGER NOT NULL, document TEXT NOT NULL)')
+    await database.execute('CREATE TABLE IF NOT EXISTS user_plan (user_id TEXT PRIMARY KEY NOT NULL CHECK (length(user_id) > 0), schema_version INTEGER NOT NULL, revision INTEGER NOT NULL, document TEXT NOT NULL)')
   } catch (error) {
     database.close()
     throw error
   }
 
-  async function readFrom(executor: Pick<Client, 'execute'>): Promise<SavedPlan> {
-    const { rows } = await executor.execute('SELECT schema_version, revision, document FROM plan WHERE id = 1')
+  async function readFrom(executor: Pick<Client, 'execute'>, userId: string): Promise<SavedPlan> {
+    if (!userId.trim()) throw new Error('A signed-in user is required.')
+    const { rows } = await executor.execute({ sql: 'SELECT schema_version, revision, document FROM user_plan WHERE user_id = ?', args: [userId] })
     const row = rows[0]
     if (!row) return { plan: emptyPlan(), revision: 0 }
     if (row.schema_version !== 1) throw new Error('Unsupported database schema.')
     return savePlanSchema.parse({ plan: financialPlanSchema.parse(JSON.parse(String(row.document))), revision: row.revision })
   }
 
-  async function write(input: SavedPlan): Promise<SavedPlan> {
+  async function write(userId: string, input: SavedPlan): Promise<SavedPlan> {
     const { plan, revision } = savePlanSchema.parse(input)
     projectNetWorth(plan)
     const transaction = await database.transaction('write')
     try {
-      const current = await readFrom(transaction)
+      const current = await readFrom(transaction, userId)
       if (revision !== current.revision) throw new RevisionConflict('This plan was changed in another tab.')
       const nextRevision = revision + 1
       await transaction.execute({
-        sql: 'INSERT INTO plan (id, schema_version, revision, document) VALUES (1, 1, ?, ?) ON CONFLICT(id) DO UPDATE SET revision = excluded.revision, document = excluded.document',
-        args: [nextRevision, JSON.stringify(plan)],
+        sql: 'INSERT INTO user_plan (user_id, schema_version, revision, document) VALUES (?, 1, ?, ?) ON CONFLICT(user_id) DO UPDATE SET revision = excluded.revision, document = excluded.document',
+        args: [userId, nextRevision, JSON.stringify(plan)],
       })
       await transaction.commit()
       return { plan, revision: nextRevision }
@@ -49,5 +50,5 @@ export async function createPlanRepository(connection: string | Config) {
     }
   }
 
-  return { read: () => readFrom(database), write, close: () => database.close() }
+  return { read: (userId: string) => readFrom(database, userId), write, close: () => database.close() }
 }

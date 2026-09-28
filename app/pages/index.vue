@@ -5,9 +5,9 @@ import { annualAmount, monthlyAmount } from '#shared/utils/projection'
 import { netWorthPercentile, percentileLabel, WEALTH_BENCHMARK } from '#shared/utils/wealth-percentile'
 import { money, monthLabel } from '@/lib/format'
 
-definePageMeta({ middleware: 'auth', alias: '/guest' })
-const guest = useRoute().path === '/guest'
-const { userId } = useAuth()
+definePageMeta({ alias: '/guest' })
+const { isSignedIn } = useAuth()
+const guest = useRoute().path === '/guest' || !isSignedIn.value
 const { draft, dirty, saving, saveError, conflict, loadError, status, forecast, save, reload } = await useFinancialPlan(guest)
 const start = useState('forecast-start', () => new Date().toISOString().slice(0, 7))
 const activeCategory = ref<Category>('incomes')
@@ -106,7 +106,7 @@ function changeYears(value: string | number) {
           </div>
         </div>
 
-        <div v-if="loadError" class="feedback error" role="alert"><CircleAlert :size="18" /><div><template v-if="loadError.statusCode === 503"><strong>Plan owner setup required.</strong><p>Your financial data is locked. Set NUXT_OWNER_USER_ID on the server to your account ID, then restart the app.</p><p>Account ID: <code>{{ userId }}</code></p></template><template v-else-if="loadError.statusCode === 403"><strong>This account cannot access the plan.</strong><p>Sign in with the configured owner's account.</p></template><template v-else-if="loadError.statusCode === 401"><strong>Your session has expired.</strong><NuxtLink to="/sign-in">Sign in again</NuxtLink></template><template v-else><strong>Could not load your saved plan.</strong><p>Your database has not been changed.</p></template></div><Button variant="outline" :disabled="status === 'pending'" @click="reload"><RefreshCw :size="15" />Retry</Button></div>
+        <div v-if="loadError" class="feedback error" role="alert"><CircleAlert :size="18" /><div><template v-if="loadError.statusCode === 401"><strong>Your session has expired.</strong><NuxtLink to="/sign-in">Sign in again</NuxtLink></template><template v-else><strong>Could not load your saved plan.</strong><p>Your database has not been changed.</p></template></div><Button variant="outline" :disabled="status === 'pending'" @click="reload"><RefreshCw :size="15" />Retry</Button></div>
         <template v-else>
           <div v-if="saveError" class="feedback error" role="alert"><CircleAlert :size="18" /><p>{{ saveError }}</p><Button v-if="conflict" variant="outline" @click="reloadOpen = true"><RefreshCw :size="15" />Reload saved plan</Button></div>
           <div v-if="forecast.error" class="feedback error" role="alert"><CircleAlert :size="18" /><p>{{ forecast.error }}</p></div>

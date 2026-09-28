@@ -4,7 +4,7 @@ const route = useRoute()
 watch(userId, (current, previous) => {
   if (previous && current !== previous) {
     clearNuxtData()
-    navigateTo('/sign-in')
+    navigateTo('/')
   }
 })
 </script>

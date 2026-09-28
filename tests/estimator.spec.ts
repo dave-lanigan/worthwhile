@@ -18,7 +18,7 @@ const test = base.extend({
   },
 })
 
-test.skip(!process.env.E2E_CLERK_USER_ID || !process.env.E2E_CLERK_USER_EMAIL, 'Requires a dedicated Clerk development test account.')
+test.skip(!process.env.E2E_CLERK_USER_EMAIL, 'Requires a dedicated Clerk development test account.')
 test.beforeAll(async () => { await clerkSetup() })
 
 async function addEntry(page: Page, category: string, name: string, fields: Record<string, string>) {
@@ -326,7 +326,7 @@ test('saved plan survives a production server process restart', async ({ request
     if (!address || typeof address === 'string') throw new Error('Expected a TCP port')
     await new Promise<void>((resolve, reject) => probe.close(error => error ? reject(error) : resolve()))
     const child = spawn(process.execPath, ['.output/server/index.mjs'], {
-      env: { ...process.env, HOST: '127.0.0.1', PORT: String(address.port), NUXT_OWNER_USER_ID: process.env.E2E_CLERK_USER_ID, NUXT_DATABASE_PATH: join(directory, 'plan.sqlite') },
+      env: { ...process.env, HOST: '127.0.0.1', PORT: String(address.port), NUXT_DATABASE_PATH: join(directory, 'plan.sqlite') },
       stdio: ['ignore', 'pipe', 'pipe'],
     })
     const url = await new Promise<string>((resolve, reject) => {
