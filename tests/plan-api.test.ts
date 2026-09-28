@@ -99,6 +99,24 @@ describe('libSQL plan storage', () => {
     }
   })
 
+  it('keeps named financial profiles isolated and revisioned', async () => {
+    const repository = await createPlanRepository(':memory:')
+    try {
+      const first = await repository.createProfile('user_first', { name: 'Early retirement', description: 'Retire at 55', plan: emptyPlan() })
+      const second = await repository.createProfile('user_second', { name: 'Home purchase', description: '', plan: emptyPlan() })
+      expect(await repository.listProfiles('user_first')).toEqual([{ id: first.id, name: 'Early retirement', description: 'Retire at 55' }])
+      expect(await repository.listProfiles('user_second')).toEqual([{ id: second.id, name: 'Home purchase', description: '' }])
+      const updated = await repository.writeProfilePlan('user_first', first.id, { plan: { ...emptyPlan(), startingCash: 10_000 }, revision: 0 })
+      expect(updated.revision).toBe(1)
+      await expect(repository.writeProfilePlan('user_first', first.id, { plan: emptyPlan(), revision: 0 })).rejects.toThrow(RevisionConflict)
+      await repository.deleteProfile('user_first', first.id)
+      expect(await repository.listProfiles('user_first')).toEqual([])
+      expect(await repository.readProfilePlan('user_second', second.id)).toMatchObject({ id: second.id, name: 'Home purchase' })
+    } finally {
+      repository.close()
+    }
+  })
+
   it('never overwrites a corrupt or unsupported saved document', async () => {
     const directory = mkdtempSync(join(tmpdir(), 'worthwhile-test-'))
     const path = join(directory, 'plan.sqlite')

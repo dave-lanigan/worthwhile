@@ -22,7 +22,7 @@ beforeEach(() => {
   vi.stubGlobal('window', { addEventListener: vi.fn(), removeEventListener: vi.fn() })
   vi.stubGlobal('onMounted', (callback: () => void) => { mount = callback })
   vi.stubGlobal('onBeforeUnmount', (callback: () => void) => { dispose = callback })
-  vi.stubGlobal('$fetch', put)
+  vi.stubGlobal('$fetch', (url: string, options?: { method?: string }) => url === '/api/plan-profiles' && !options?.method ? Promise.resolve([]) : put(url, options))
   vi.stubGlobal('useFetch', () => {
     const result = { data: saved, error: loadError, refresh, status: ref('success') }
     return Object.assign(Promise.resolve(result), result)
@@ -51,6 +51,37 @@ it('does not write on load and debounces edits into one automatic save', async (
   expect(put).toHaveBeenCalledTimes(1)
   expect(put.mock.calls[0]![1].body).toEqual({ plan: { ...emptyPlan(), startingCash: 200 }, revision: 3 })
   expect(state.dirty.value).toBe(false)
+})
+
+it.each([false, true])('creates a profile with blank=%s without overwriting the original', async (blank) => {
+  const state = await useFinancialPlan()
+  mount()
+  state.draft.value.startingCash = 100
+  await nextTick()
+  put.mockImplementation(async (_url, options) => options.method === 'POST'
+    ? { id: 'new-profile', name: 'New profile', description: '', plan: options.body.plan, revision: 1 }
+    : { plan: options.body.plan, revision: options.body.revision + 1 })
+  await state.createProfile('New profile', '', blank ? emptyPlan() : undefined)
+  await nextTick()
+  await vi.advanceTimersByTimeAsync(1000)
+  expect(put).toHaveBeenCalledTimes(2)
+  expect(put.mock.calls[0]![0]).toBe('/api/plan')
+  expect(put.mock.calls[0]![1].body.plan.startingCash).toBe(100)
+  expect(put.mock.calls[1]![1].body.plan.startingCash).toBe(blank ? 0 : 100)
+  expect(state.draft.value.startingCash).toBe(blank ? 0 : 100)
+  expect(state.activeProfile.value?.id).toBe('new-profile')
+  expect(state.dirty.value).toBe(false)
+})
+
+it('keeps the current draft when creating a profile fails', async () => {
+  saved.value.plan.startingCash = 100
+  const state = await useFinancialPlan()
+  mount()
+  put.mockRejectedValueOnce(new Error('Unavailable'))
+  await expect(state.createProfile('New profile', '', emptyPlan())).rejects.toThrow('Unavailable')
+  expect(state.draft.value.startingCash).toBe(100)
+  expect(state.activeProfile.value).toBeUndefined()
+  expect(state.saving.value).toBe(false)
 })
 
 it.each([0, 200])('queues edits to %s during a save using the acknowledged revision', async (amount) => {

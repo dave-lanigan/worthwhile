@@ -27,6 +27,17 @@ export type CashFlow = z.infer<typeof cashFlowSchema>
 export type Investment = z.infer<typeof investmentSchema>
 export type Liability = z.infer<typeof liabilitySchema>
 export type SavedPlan = { plan: FinancialPlan; revision: number }
+
+export const planProfileSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string().trim().min(1).max(60),
+  description: z.string().trim().max(180),
+})
+export const createPlanProfileSchema = planProfileSchema.omit({ id: true }).extend({ plan: financialPlanSchema })
+export const savedPlanProfileSchema = planProfileSchema.extend({ plan: financialPlanSchema, revision: z.number().int().nonnegative() })
+export const savePlanProfileSchema = z.object({ plan: financialPlanSchema, revision: z.number().int().nonnegative() })
+export type PlanProfile = z.infer<typeof planProfileSchema>
+export type SavedPlanProfile = z.infer<typeof savedPlanProfileSchema>
 export type Category = 'incomes' | 'investments' | 'expenses' | 'liabilities'
 
 export const taxFilingStatusSchema = z.enum(['single', 'married-jointly', 'married-separately', 'head-of-household'])

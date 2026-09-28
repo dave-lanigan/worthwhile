@@ -1,0 +1,17 @@
+[     768ms] [LOG] %cssr:success%c Vite server hmr 89 files 
+      background: #2ecc71;
+      border-radius: 0.5em;
+      color: white;
+      font-weight: bold;
+      padding: 2px 0.5em;
+      in 1.298ms 
+  at <anonymous> (node_modules/@nuxt/nitro-server/dist/runtime/plugins/dev-server-logs.mjs)
+  at Object.log (node_modules/@nuxt/nitro-server/dist/runtime/plugins/dev-server-logs.mjs)
+  at vite_node_entry_default (node_modules/@nuxt/vite-builder/dist/vite-node-entry.mjs)
+  at process.processTicksAndRejections (node:internal/process/task_queues)
+  at async Object.renderToString (node_modules/vue-bundle-renderer/dist/runtime.mjs)
+ @ http://127.0.0.1:3000/_nuxt/@fs/Users/davidlanigan/Dev/nw-estimator/node_modules/consola/dist/browser.mjs?v=d848feec:47
+[     774ms] [INFO] <Suspense> is an experimental feature and its API will likely change. @ http://127.0.0.1:3000/_nuxt/@fs/Users/davidlanigan/Dev/nw-estimator/node_modules/@vue/runtime-core/dist/runtime-core.esm-bundler.js?v=d848feec:6124
+[     842ms] [WARNING] Unovis | Crosshair: Y accessors have not been configured. Please check if they're present in the configuration object @ http://127.0.0.1:3000/_nuxt/@fs/Users/davidlanigan/Dev/nw-estimator/node_modules/.cache/vite/client/deps/@unovis_vue.js?v=d848feec:13100
+[     971ms] [WARNING] Clerk: Clerk has been loaded with development keys. Development instances have strict usage limits and should not be used when deploying your application to production. Learn more: https://clerk.com/docs/deployments/overview @ https://valid-pheasant-4819.clerk.accounts.dev/npm/@clerk/clerk-js@6/dist/clerk.browser.js:195
+[    5280ms] [WARNING] Unovis | Crosshair: Y accessors have not been configured. Please check if they're present in the configuration object @ http://127.0.0.1:3000/_nuxt/@fs/Users/davidlanigan/Dev/nw-estimator/node_modules/.cache/vite/client/deps/@unovis_vue.js?v=d848feec:13100

@@ -1,4 +1,4 @@
-import { emptyPlan, examplePlan, type FinancialPlan, type SavedPlan } from '#shared/schemas/financial-plan'
+import { emptyPlan, examplePlan, type FinancialPlan, type PlanProfile, type SavedPlan, type SavedPlanProfile } from '#shared/schemas/financial-plan'
 import { projectNetWorth } from '#shared/utils/projection'
 
 export async function useFinancialPlan(guest = false, showExample = false) {
@@ -6,6 +6,8 @@ export async function useFinancialPlan(guest = false, showExample = false) {
   const { data, error: loadError, refresh, status } = initialRequest
   const draft = ref<FinancialPlan>(showExample ? examplePlan() : emptyPlan())
   const revision = ref(0)
+  const activeProfile = ref<PlanProfile>()
+  const profiles = ref<PlanProfile[]>([])
   const savedJson = ref(JSON.stringify(draft.value))
   const saving = ref(false)
   const saveError = ref('')
@@ -18,6 +20,57 @@ export async function useFinancialPlan(guest = false, showExample = false) {
   function cancelScheduledSave() {
     clearTimeout(timer)
     timer = undefined
+  }
+
+  async function refreshProfiles() {
+    if (guest) return
+    profiles.value = await $fetch<PlanProfile[]>('/api/plan-profiles', { retry: 0 })
+  }
+
+  async function selectProfile(id?: string) {
+    cancelScheduledSave()
+    if (!id) {
+      activeProfile.value = undefined
+      await reload()
+      return
+    }
+    const saved = await $fetch<SavedPlanProfile>(`/api/plan-profiles/${id}`, { retry: 0 })
+    activeProfile.value = { id: saved.id, name: saved.name, description: saved.description }
+    draft.value = structuredClone(saved.plan)
+    revision.value = saved.revision
+    savedJson.value = JSON.stringify(saved.plan)
+    saveError.value = ''
+    conflict.value = false
+  }
+
+  async function createProfile(name: string, description: string, plan: FinancialPlan = draft.value) {
+    if (guest || disposed || saving.value || loadError.value || !forecast.value.result) throw new Error('Profile creation is unavailable.')
+    const snapshot = structuredClone(toRaw(plan))
+    if (dirty.value) await save()
+    if (dirty.value || disposed) throw new Error('Save the current plan before creating a profile.')
+    cancelScheduledSave()
+    saving.value = true
+    try {
+      const saved = await $fetch<SavedPlanProfile>('/api/plan-profiles', { method: 'POST', body: { name, description, plan: snapshot }, retry: 0 })
+      if (disposed) return
+      profiles.value.unshift({ id: saved.id, name: saved.name, description: saved.description })
+      activeProfile.value = { id: saved.id, name: saved.name, description: saved.description }
+      draft.value = structuredClone(saved.plan)
+      revision.value = saved.revision
+      savedJson.value = JSON.stringify(saved.plan)
+      saveError.value = ''
+      conflict.value = false
+    } finally {
+      saving.value = false
+      scheduleSave()
+    }
+  }
+
+  async function deleteProfile(id: string) {
+    if (guest) return
+    await $fetch(`/api/plan-profiles/${id}`, { method: 'DELETE', retry: 0 })
+    profiles.value = profiles.value.filter(profile => profile.id !== id)
+    if (activeProfile.value?.id === id) await selectProfile()
   }
 
   function acceptLoaded() {
@@ -56,7 +109,9 @@ export async function useFinancialPlan(guest = false, showExample = false) {
     controller = new AbortController()
     const plan = structuredClone(toRaw(draft.value))
     try {
-      const saved = await $fetch<SavedPlan>('/api/plan', { method: 'PUT', body: { plan, revision: revision.value }, signal: controller.signal, retry: 0 })
+      const saved = activeProfile.value
+        ? await $fetch<SavedPlanProfile>(`/api/plan-profiles/${activeProfile.value.id}`, { method: 'PUT', body: { plan, revision: revision.value }, signal: controller.signal, retry: 0 })
+        : await $fetch<SavedPlan>('/api/plan', { method: 'PUT', body: { plan, revision: revision.value }, signal: controller.signal, retry: 0 })
       if (disposed) return
       revision.value = saved.revision
       savedJson.value = JSON.stringify(saved.plan)
@@ -79,7 +134,9 @@ export async function useFinancialPlan(guest = false, showExample = false) {
     saveError.value = ''
     controller = new AbortController()
     try {
-      const saved = await $fetch<SavedPlan>('/api/plan', { method: 'PUT', body: { plan: emptyPlan(), revision: revision.value }, signal: controller.signal, retry: 0 })
+      const saved = activeProfile.value
+        ? await $fetch<SavedPlanProfile>(`/api/plan-profiles/${activeProfile.value.id}`, { method: 'PUT', body: { plan: emptyPlan(), revision: revision.value }, signal: controller.signal, retry: 0 })
+        : await $fetch<SavedPlan>('/api/plan', { method: 'PUT', body: { plan: emptyPlan(), revision: revision.value }, signal: controller.signal, retry: 0 })
       if (disposed) return false
       draft.value = saved.plan
       revision.value = saved.revision
@@ -99,8 +156,11 @@ export async function useFinancialPlan(guest = false, showExample = false) {
   async function reload() {
     if (guest || disposed || saving.value) return
     cancelScheduledSave()
-    await refresh()
-    acceptLoaded()
+    if (activeProfile.value) await selectProfile(activeProfile.value.id)
+    else {
+      await refresh()
+      acceptLoaded()
+    }
   }
 
   function warnBeforeLeaving(event: BeforeUnloadEvent) {
@@ -123,6 +183,9 @@ export async function useFinancialPlan(guest = false, showExample = false) {
 
   await initialRequest
   acceptLoaded()
+  if (!guest) {
+    try { await refreshProfiles() } catch { /* Profile controls remain unavailable until the next refresh. */ }
+  }
 
-  return { draft, dirty, saving, saveError, conflict, loadError, status, forecast, save, clear, reload }
+  return { draft, dirty, saving, saveError, conflict, loadError, status, forecast, activeProfile, profiles, selectProfile, createProfile, deleteProfile, save, clear, reload }
 }

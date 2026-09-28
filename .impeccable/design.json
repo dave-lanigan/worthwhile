@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "name": "Worthwhile planning desk",
+  "color": {
+    "ground": "#edf0eb",
+    "ink": "#102831",
+    "growth": "#79d2af",
+    "neutralData": "#afc7d1",
+    "liability": "#ec9f86",
+    "divider": "#b9c5bd"
+  },
+  "type": {
+    "display": "Manrope",
+    "body": "Public Sans"
+  },
+  "principles": [
+    "Forecast first, ledger second",
+    "Use dividers and rhythm instead of repeated cards",
+    "Reveal risk controls only in Monte Carlo mode",
+    "Keep personal financial information private and legible"
+  ]
+}

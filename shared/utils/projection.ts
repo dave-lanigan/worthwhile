@@ -95,3 +95,77 @@ export function projectNetWorth(input: FinancialPlan) {
 }
 
 export type Projection = ReturnType<typeof projectNetWorth>
+
+export type MonteCarloOptions = {
+  annualReturn: number
+  annualVolatility: number
+  target?: number
+  runs?: number
+  random?: () => number
+}
+
+export type MonteCarloPoint = {
+  month: number
+  p10: number
+  p25: number
+  p50: number
+  p75: number
+  p90: number
+}
+
+function percentile(values: number[], value: number): number {
+  return values[Math.round((values.length - 1) * value)]!
+}
+
+function standardNormal(random: () => number): number {
+  let first = random()
+  let second = random()
+  while (first === 0) first = random()
+  while (second === 0) second = random()
+  return Math.sqrt(-2 * Math.log(first)) * Math.cos(2 * Math.PI * second)
+}
+
+export function simulateNetWorth(input: FinancialPlan, options: MonteCarloOptions) {
+  const plan = financialPlanSchema.parse(input)
+  const runs = options.runs ?? 5000
+  const target = options.target ?? 100_000_000
+  if (!Number.isInteger(runs) || runs < 1 || runs > 100_000) throw new Error('Choose between 1 and 100,000 simulation runs.')
+  if (!Number.isSafeInteger(target) || target < 0) throw new Error('Choose a valid target amount.')
+  if (!Number.isFinite(options.annualReturn) || !Number.isFinite(options.annualVolatility) || options.annualVolatility < 0) throw new Error('Choose valid return assumptions.')
+
+  const deterministic = projectNetWorth(plan)
+  const months = deterministic.points.length
+  const values = Array.from({ length: months }, () => new Array<number>(runs))
+  const annualReturn = options.annualReturn / 100
+  const annualVolatility = options.annualVolatility / 100
+  const monthlyVolatility = annualVolatility / Math.sqrt(12)
+  const monthlyDrift = Math.log1p(annualReturn) / 12 - monthlyVolatility ** 2 / 2
+  const random = options.random ?? Math.random
+
+  for (let run = 0; run < runs; run++) {
+    let invested = deterministic.points[0]!.invested
+    values[0]![run] = deterministic.points[0]!.netWorth
+    for (let month = 1; month < months; month++) {
+      const point = deterministic.points[month]!
+      const factor = Math.exp(monthlyDrift + monthlyVolatility * standardNormal(random))
+      invested = checked(Math.round(invested * factor + point.contributions))
+      values[month]![run] = checked(point.cash - point.debt + invested)
+    }
+  }
+
+  const points = values.map((runValues, month) => {
+    runValues.sort((first, second) => first - second)
+    return {
+      month,
+      p10: percentile(runValues, 0.1),
+      p25: percentile(runValues, 0.25),
+      p50: percentile(runValues, 0.5),
+      p75: percentile(runValues, 0.75),
+      p90: percentile(runValues, 0.9),
+    }
+  })
+  const finalValues = values[months - 1]!
+  const probability = finalValues.filter(value => value >= target).length / runs
+
+  return { points, probability, target, runs }
+}

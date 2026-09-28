@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { emptyPlan, financialPlanSchema } from '../shared/schemas/financial-plan'
-import { annualAmount, monthlyAmount, projectNetWorth } from '../shared/utils/projection'
+import { annualAmount, monthlyAmount, projectNetWorth, simulateNetWorth } from '../shared/utils/projection'
 import { NET_WORTH_PERCENTILE_THRESHOLDS, netWorthPercentile, percentileLabel } from '../shared/utils/wealth-percentile'
 
 describe('net worth projections', () => {
@@ -161,6 +161,13 @@ describe('net worth projections', () => {
     expect(financialPlanSchema.safeParse({ ...emptyPlan(), startingCash: -1 }).success).toBe(false)
     expect(financialPlanSchema.safeParse({ ...emptyPlan(), startingCash: Infinity }).success).toBe(false)
     expect(() => projectNetWorth({ ...emptyPlan(), years: 40, investments: [{ id: 'fund', name: 'Fund', balance: 100000000, annualRoi: 1000 }] })).toThrow('exceeds')
+  })
+
+  it('collapses every Monte Carlo percentile to the mean-return path at zero volatility', () => {
+    const plan = { ...emptyPlan(), years: 1, investments: [{ id: 'fund', name: 'Fund', balance: 100000, annualRoi: 0 }] }
+    const simulation = simulateNetWorth(plan, { annualReturn: 12, annualVolatility: 0, runs: 100, target: 110000 })
+    expect(simulation.points[12]).toMatchObject({ p10: 112000, p25: 112000, p50: 112000, p75: 112000, p90: 112000 })
+    expect(simulation.probability).toBe(1)
   })
 })
 

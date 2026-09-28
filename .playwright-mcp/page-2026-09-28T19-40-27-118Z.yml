@@ -1,0 +1,159 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - link "Worthwhile home" [ref=e5] [cursor=pointer]:
+      - /url: /
+      - generic [ref=e9]: worthwhile.
+    - generic [ref=e10]:
+      - generic [ref=e11]: Personal forecast
+      - generic [ref=e12]: /
+      - text: USD
+    - link "Sign in" [ref=e14] [cursor=pointer]:
+      - /url: /sign-in
+  - main [ref=e15]:
+    - generic [ref=e16]:
+      - heading "Your example plan" [level=1] [ref=e18]
+      - generic [ref=e19]:
+        - status [ref=e20]: Example data only. Sign in to build and save your own plan.
+        - button "Reset example data" [ref=e21] [cursor=pointer]
+    - region "Net worth summary" [ref=e22]:
+      - generic [ref=e23]:
+        - generic [ref=e24]:
+          - generic [ref=e25]: Net worth today
+          - strong [ref=e30]: $31,200
+        - generic [ref=e32]:
+          - paragraph [ref=e33]: Assets minus liabilities
+          - paragraph [ref=e34]: Approx. 26th percentile
+      - generic [ref=e35]:
+        - generic [ref=e36]:
+          - generic [ref=e37]:
+            - generic [ref=e38]: Projected net worth
+            - generic [ref=e39]: 10 years
+          - strong [ref=e40]: $116,399
+        - generic [ref=e42]:
+          - paragraph [ref=e43]: $85,199 projected change
+          - paragraph [ref=e47]: Approx. 41st percentile
+      - generic [ref=e48]:
+        - generic [ref=e49]:
+          - generic [ref=e50]: Monthly surplus
+          - strong [ref=e55]: $200
+        - generic [ref=e56]:
+          - paragraph [ref=e57]: After expenses & debt payments
+          - paragraph [ref=e58]: Available to save or invest
+    - region [ref=e59]:
+      - generic [ref=e60]:
+        - generic [ref=e61]:
+          - heading "The view ahead" [level=2] [ref=e62]
+          - paragraph [ref=e63]: Sep 2026 Sep 2036
+        - group "Forecast method" [ref=e66]:
+          - button "Deterministic" [pressed] [ref=e67] [cursor=pointer]
+          - button "Monte Carlo" [ref=e68] [cursor=pointer]
+      - generic [ref=e69]:
+        - generic [ref=e70]:
+          - generic [ref=e71]:
+            - generic [ref=e72]: Horizon
+            - generic "Forecast horizon" [ref=e73]
+            - spinbutton "Horizon" [ref=e76]: "10"
+            - generic [ref=e77]: years
+          - tablist "Forecast view" [ref=e79]:
+            - tab "Chart" [selected] [ref=e80] [cursor=pointer]
+            - tab "Annual table" [ref=e81] [cursor=pointer]
+        - generic "Chart legend" [ref=e83]:
+          - generic [ref=e84]: Net worth
+          - generic [ref=e86]: Assets
+          - generic [ref=e88]: Liabilities
+        - generic [ref=e90]: Loading forecast
+        - generic [ref=e95]:
+          - generic [ref=e96]:
+            - generic [ref=e97]: Sep 2036
+            - slider "Selected forecast month" [ref=e98]: "120"
+          - generic [ref=e99]:
+            - generic [ref=e100]: Cash
+            - strong [ref=e101]: $8,250
+          - generic [ref=e102]:
+            - generic [ref=e103]: Investments
+            - strong [ref=e104]: $108,149
+          - generic [ref=e105]:
+            - generic [ref=e106]: Liabilities
+            - strong [ref=e107]: $0
+          - generic [ref=e108]:
+            - generic [ref=e109]: Net worth
+            - strong [ref=e110]: $116,399
+    - region [ref=e111]:
+      - generic [ref=e112]:
+        - generic [ref=e113]:
+          - heading "Your financial picture" [level=2] [ref=e114]
+          - paragraph [ref=e115]: The starting point for your forecast
+        - generic [ref=e117]:
+          - generic [ref=e121]: Starting cash
+          - generic [ref=e122]:
+            - generic [ref=e123]: $
+            - spinbutton "Starting cash" [ref=e124]: "8250"
+      - generic [ref=e126]:
+        - tablist "Financial categories" [ref=e127]:
+          - tab "Income 2 $704" [selected] [ref=e128] [cursor=pointer]:
+            - generic [ref=e129]:
+              - generic [ref=e130]: Income
+              - generic [ref=e131]: "2"
+            - generic [ref=e132]: $704
+          - tab "Investments 2 $25,050" [ref=e133] [cursor=pointer]:
+            - generic [ref=e134]:
+              - generic [ref=e135]: Investments
+              - generic [ref=e136]: "2"
+            - generic [ref=e137]: $25,050
+          - tab "Expenses 2 $324" [ref=e138] [cursor=pointer]:
+            - generic [ref=e139]:
+              - generic [ref=e140]: Expenses
+              - generic [ref=e141]: "2"
+            - generic [ref=e142]: $324
+          - tab "Liabilities 1 $2,100" [ref=e143] [cursor=pointer]:
+            - generic [ref=e144]:
+              - generic [ref=e145]: Liabilities
+              - generic [ref=e146]: "1"
+            - generic [ref=e147]: $2,100
+        - generic [ref=e148]:
+          - generic [ref=e149]:
+            - heading "Income" [level=3] [ref=e150]
+            - generic [ref=e151]: "Monthly total: $704"
+            - generic [ref=e152]: $8,450.00 / year
+          - button "Add income" [ref=e153] [cursor=pointer]
+        - table [ref=e154]:
+          - table [ref=e155]:
+            - caption [ref=e156]: Income entries
+            - rowgroup [ref=e157]:
+              - row [ref=e158]:
+                - columnheader "Name" [ref=e159]
+                - columnheader "Amount" [ref=e160]
+                - columnheader "Frequency" [ref=e161]
+                - columnheader "Monthly total" [ref=e162]
+                - columnheader "Yearly total" [ref=e163]
+                - columnheader "Actions" [ref=e164]
+            - rowgroup [ref=e166]:
+              - row [ref=e167]:
+                - cell "Jim Doe salary" [ref=e168]
+                - cell "$7,800.00" [ref=e175]
+                - cell "Annual" [ref=e176]
+                - cell "$650.00" [ref=e178]
+                - cell "$7,800.00" [ref=e179]
+                - cell [ref=e180]:
+                  - generic [ref=e181]:
+                    - button "Edit Jim Doe salary" [ref=e182] [cursor=pointer]
+                    - button "Delete Jim Doe salary" [ref=e183] [cursor=pointer]
+              - row [ref=e184]:
+                - cell "Jim Doe freelance work" [ref=e185]
+                - cell "$650.00" [ref=e192]
+                - cell "Annual" [ref=e193]
+                - cell "$54.17" [ref=e195]
+                - cell "$650.00" [ref=e196]
+                - cell [ref=e197]:
+                  - generic [ref=e198]:
+                    - button "Edit Jim Doe freelance work" [ref=e199] [cursor=pointer]
+                    - button "Delete Jim Doe freelance work" [ref=e200] [cursor=pointer]
+    - generic [ref=e201]:
+      - paragraph [ref=e202]: Monthly compounding. Custom surplus allocations. Fixed returns; no taxes or inflation. Estimates, not guarantees.
+      - navigation "Legal and support" [ref=e203]:
+        - link "Privacy policy" [ref=e204] [cursor=pointer]:
+          - /url: /privacy
+        - link "Terms of use" [ref=e205] [cursor=pointer]:
+          - /url: /terms
+        - link "Contact" [ref=e206] [cursor=pointer]:
+          - /url: mailto:support@worthwhile.app
