@@ -1,0 +1,49 @@
+{
+  "name": "nw-estimator",
+  "private": true,
+  "type": "module",
+  "engines": { "node": "22.x" },
+  "scripts": {
+    "dev": "NODE_USE_SYSTEM_CA=1 nuxt dev --host 127.0.0.1",
+    "build": "nuxt build",
+    "build:vercel": "nuxt build --preset=vercel",
+    "start": "HOST=127.0.0.1 NODE_USE_SYSTEM_CA=1 node --env-file-if-exists=.env .output/server/index.mjs",
+    "postinstall": "nuxt prepare",
+    "typecheck": "nuxt typecheck",
+    "test": "vitest run",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "@clerk/nuxt": "^3.1.6",
+    "@clerk/ui": "^1.36.0",
+    "@fontsource/manrope": "latest",
+    "@fontsource/public-sans": "latest",
+    "@libsql/client": "^0.18.0",
+    "@lucide/vue": "^1.48.0",
+    "@tailwindcss/vite": "latest",
+    "@unovis/ts": "latest",
+    "@unovis/vue": "latest",
+    "@vueuse/core": "^15.0.0",
+    "better-sqlite3": "latest",
+    "class-variance-authority": "latest",
+    "clsx": "latest",
+    "lucide-vue-next": "latest",
+    "nuxt": "^4.0.0",
+    "reka-ui": "^2.10.5",
+    "shadcn-nuxt": "latest",
+    "tailwind-merge": "latest",
+    "tailwindcss": "latest",
+    "tw-animate-css": "latest",
+    "vue": "latest",
+    "zod": "latest"
+  },
+  "devDependencies": {
+    "@clerk/testing": "^2.2.39",
+    "@playwright/test": "latest",
+    "@types/better-sqlite3": "latest",
+    "@types/node": "^22.0.0",
+    "typescript": "5.9.3",
+    "vitest": "latest",
+    "vue-tsc": "latest"
+  }
+}
