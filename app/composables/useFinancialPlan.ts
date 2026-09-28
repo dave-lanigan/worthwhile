@@ -1,10 +1,10 @@
-import { emptyPlan, type FinancialPlan, type SavedPlan } from '#shared/schemas/financial-plan'
+import { emptyPlan, examplePlan, type FinancialPlan, type SavedPlan } from '#shared/schemas/financial-plan'
 import { projectNetWorth } from '#shared/utils/projection'
 
-export async function useFinancialPlan(guest = false) {
+export async function useFinancialPlan(guest = false, showExample = false) {
   const initialRequest = useFetch<SavedPlan>('/api/plan', { key: guest ? 'guest-plan' : 'saved-plan', immediate: !guest, watch: false })
   const { data, error: loadError, refresh, status } = initialRequest
-  const draft = ref<FinancialPlan>(emptyPlan())
+  const draft = ref<FinancialPlan>(showExample ? examplePlan() : emptyPlan())
   const revision = ref(0)
   const savedJson = ref(JSON.stringify(draft.value))
   const saving = ref(false)
@@ -72,6 +72,30 @@ export async function useFinancialPlan(guest = false) {
     }
   }
 
+  async function clear() {
+    cancelScheduledSave()
+    if (guest || disposed || saving.value || loadError.value) return false
+    saving.value = true
+    saveError.value = ''
+    controller = new AbortController()
+    try {
+      const saved = await $fetch<SavedPlan>('/api/plan', { method: 'PUT', body: { plan: emptyPlan(), revision: revision.value }, signal: controller.signal, retry: 0 })
+      if (disposed) return false
+      draft.value = saved.plan
+      revision.value = saved.revision
+      savedJson.value = JSON.stringify(saved.plan)
+      return true
+    } catch (error: unknown) {
+      if (disposed) return false
+      conflict.value = (error as { statusCode?: number }).statusCode === 409
+      saveError.value = conflict.value ? 'Another tab updated this plan. Reload the saved version to continue.' : 'Your plan could not be cleared. Try again.'
+      return false
+    } finally {
+      saving.value = false
+      controller = undefined
+    }
+  }
+
   async function reload() {
     if (guest || disposed || saving.value) return
     cancelScheduledSave()
@@ -100,5 +124,5 @@ export async function useFinancialPlan(guest = false) {
   await initialRequest
   acceptLoaded()
 
-  return { draft, dirty, saving, saveError, conflict, loadError, status, forecast, save, reload }
+  return { draft, dirty, saving, saveError, conflict, loadError, status, forecast, save, clear, reload }
 }

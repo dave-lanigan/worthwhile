@@ -11,7 +11,16 @@ export default defineNuxtConfig({
     signInFallbackRedirectUrl: '/',
     signUpFallbackRedirectUrl: '/',
     afterSignOutUrl: '/',
-    appearance: { theme: shadcn },
+    appearance: {
+      theme: shadcn,
+      variables: { colorBackground: '#ffffff' },
+      elements: {
+        userButtonAvatarBox: { width: '36px', height: '36px' },
+        userButtonPopoverCard: { backgroundColor: '#ffffff', opacity: 1, border: '1px solid #e4e4e7', boxShadow: '0 12px 30px rgb(24 24 27 / 0.14)' },
+        userButtonPopoverMain: { backgroundColor: '#ffffff', opacity: 1 },
+        userButtonPopoverFooter: { backgroundColor: '#ffffff', opacity: 1 },
+      },
+    },
   },
   css: ['~/assets/css/tailwind.css'],
   vite: { plugins: [tailwindcss()] },

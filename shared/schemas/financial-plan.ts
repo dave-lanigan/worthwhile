@@ -29,6 +29,25 @@ export type Liability = z.infer<typeof liabilitySchema>
 export type SavedPlan = { plan: FinancialPlan; revision: number }
 export type Category = 'incomes' | 'investments' | 'expenses' | 'liabilities'
 
+export const taxFilingStatusSchema = z.enum(['single', 'married-jointly', 'married-separately', 'head-of-household'])
+const birthDateSchema = z.union([z.string().regex(/^\d{4}-\d{2}-\d{2}$/), z.literal('')])
+export const userProfileSchema = z.object({
+  birthDate: birthDateSchema,
+  address: z.string().trim().min(1).max(160),
+  taxFilingStatus: taxFilingStatusSchema,
+})
+export const savedUserProfileSchema = z.object({ profile: userProfileSchema, revision: z.number().int().nonnegative() })
+export type UserProfile = z.infer<typeof userProfileSchema>
+export type SavedUserProfile = z.infer<typeof savedUserProfileSchema>
+
+export function emptyUserProfile(): UserProfile {
+  return { birthDate: '', address: '', taxFilingStatus: 'single' }
+}
+
+export function exampleUserProfile(): UserProfile {
+  return { birthDate: '1994-01-01', address: '123 Example Street, Austin, TX 78701', taxFilingStatus: 'single' }
+}
+
 export function investmentAllocation(investment: Investment, investments: Investment[]): number {
   if (investment.monthlyContribution !== undefined) return 0
   if (investment.allocation !== undefined) return investment.allocation
@@ -39,4 +58,26 @@ export function investmentAllocation(investment: Investment, investments: Invest
 
 export function emptyPlan(): FinancialPlan {
   return { startingCash: 0, years: 10, incomes: [], investments: [], expenses: [], liabilities: [] }
+}
+
+export function examplePlan(): FinancialPlan {
+  return {
+    startingCash: 825000,
+    years: 10,
+    incomes: [
+      { id: 'example-salary', name: 'Jim Doe salary', amount: 780000, frequency: 'annual' },
+      { id: 'example-freelance', name: 'Jim Doe freelance work', amount: 65000, frequency: 'annual' },
+    ],
+    investments: [
+      { id: 'example-retirement', name: 'Jim Doe retirement account', balance: 1840000, annualRoi: 7, allocation: 70 },
+      { id: 'example-brokerage', name: 'Jim Doe brokerage account', balance: 665000, annualRoi: 6, allocation: 30 },
+    ],
+    expenses: [
+      { id: 'example-living', name: 'Jim Doe living costs', amount: 365000, frequency: 'annual' },
+      { id: 'example-travel', name: 'Jim Doe travel fund', amount: 24000, frequency: 'annual' },
+    ],
+    liabilities: [
+      { id: 'example-student-loan', name: 'Jim Doe student loan', balance: 210000, apr: 4.5, payment: 18000 },
+    ],
+  }
 }

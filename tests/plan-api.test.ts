@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { createServer } from 'node:http'
 import Database from 'better-sqlite3'
 import { describe, expect, it, vi } from 'vitest'
-import { emptyPlan } from '../shared/schemas/financial-plan'
+import { emptyPlan, emptyUserProfile } from '../shared/schemas/financial-plan'
 import { createPlanRepository, RevisionConflict } from '../server/utils/plan-repository'
 import { localRequestError } from '../server/utils/local-request'
 import { requireSignedInUser } from '../server/utils/plan-auth'
@@ -69,6 +69,32 @@ describe('libSQL plan storage', () => {
       expect(await reopened.read('user_first')).toEqual(saved)
       reopened.close()
     } finally {
+      rmSync(directory, { recursive: true, force: true })
+    }
+  })
+
+  it('persists user profile details separately for each account', async () => {
+    const directory = mkdtempSync(join(tmpdir(), 'worthwhile-test-'))
+    const path = join(directory, 'plan.sqlite')
+    const repository = await createPlanRepository(path)
+    const other = await createPlanRepository(path)
+      const profile = {
+        birthDate: '1991-08-22',
+        address: '123 Main Street, Austin, TX 78701',
+        taxFilingStatus: 'head-of-household' as const,
+      }
+    try {
+      expect(await repository.readProfile('user_first')).toEqual({ profile: emptyUserProfile(), revision: 0 })
+      const saved = await repository.writeProfile('user_first', { profile, revision: 0 })
+      expect(saved).toEqual({ profile, revision: 1 })
+      expect(await other.readProfile('user_second')).toEqual({ profile: emptyUserProfile(), revision: 0 })
+      await expect(other.writeProfile('user_first', { profile, revision: 0 })).rejects.toThrow(RevisionConflict)
+      repository.close()
+      const reopened = await createPlanRepository(path)
+      expect(await reopened.readProfile('user_first')).toEqual(saved)
+      reopened.close()
+    } finally {
+      other.close()
       rmSync(directory, { recursive: true, force: true })
     }
   })

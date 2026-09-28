@@ -2,7 +2,7 @@ import { createClient, type Client, type Config } from '@libsql/client'
 import { mkdirSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { emptyPlan, financialPlanSchema, savePlanSchema, type SavedPlan } from '../../shared/schemas/financial-plan'
+import { emptyPlan, emptyUserProfile, financialPlanSchema, savePlanSchema, savedUserProfileSchema, type SavedPlan, type SavedUserProfile } from '../../shared/schemas/financial-plan'
 import { projectNetWorth } from '../../shared/utils/projection'
 
 export class RevisionConflict extends Error {}
@@ -14,6 +14,7 @@ export async function createPlanRepository(connection: string | Config) {
     : connection)
   try {
     await database.execute('CREATE TABLE IF NOT EXISTS user_plan (user_id TEXT PRIMARY KEY NOT NULL CHECK (length(user_id) > 0), schema_version INTEGER NOT NULL, revision INTEGER NOT NULL, document TEXT NOT NULL)')
+    await database.execute('CREATE TABLE IF NOT EXISTS user_profile (user_id TEXT PRIMARY KEY NOT NULL CHECK (length(user_id) > 0), schema_version INTEGER NOT NULL, revision INTEGER NOT NULL, document TEXT NOT NULL)')
   } catch (error) {
     database.close()
     throw error
@@ -26,6 +27,36 @@ export async function createPlanRepository(connection: string | Config) {
     if (!row) return { plan: emptyPlan(), revision: 0 }
     if (row.schema_version !== 1) throw new Error('Unsupported database schema.')
     return savePlanSchema.parse({ plan: financialPlanSchema.parse(JSON.parse(String(row.document))), revision: row.revision })
+  }
+
+  async function readProfileFrom(executor: Pick<Client, 'execute'>, userId: string): Promise<SavedUserProfile> {
+    if (!userId.trim()) throw new Error('A signed-in user is required.')
+    const { rows } = await executor.execute({ sql: 'SELECT schema_version, revision, document FROM user_profile WHERE user_id = ?', args: [userId] })
+    const row = rows[0]
+    if (!row) return { profile: emptyUserProfile(), revision: 0 }
+    if (row.schema_version !== 1) throw new Error('Unsupported database schema.')
+    return savedUserProfileSchema.parse({ profile: { ...emptyUserProfile(), ...JSON.parse(String(row.document)) }, revision: row.revision })
+  }
+
+  async function writeProfile(userId: string, input: SavedUserProfile): Promise<SavedUserProfile> {
+    const { profile, revision } = savedUserProfileSchema.parse(input)
+    const transaction = await database.transaction('write')
+    try {
+      const current = await readProfileFrom(transaction, userId)
+      if (revision !== current.revision) throw new RevisionConflict('This profile was changed in another tab.')
+      const nextRevision = revision + 1
+      await transaction.execute({
+        sql: 'INSERT INTO user_profile (user_id, schema_version, revision, document) VALUES (?, 1, ?, ?) ON CONFLICT(user_id) DO UPDATE SET revision = excluded.revision, document = excluded.document',
+        args: [userId, nextRevision, JSON.stringify(profile)],
+      })
+      await transaction.commit()
+      return { profile, revision: nextRevision }
+    } catch (error) {
+      await transaction.rollback()
+      throw error
+    } finally {
+      transaction.close()
+    }
   }
 
   async function write(userId: string, input: SavedPlan): Promise<SavedPlan> {
@@ -50,5 +81,5 @@ export async function createPlanRepository(connection: string | Config) {
     }
   }
 
-  return { read: (userId: string) => readFrom(database, userId), write, close: () => database.close() }
+  return { read: (userId: string) => readFrom(database, userId), write, readProfile: (userId: string) => readProfileFrom(database, userId), writeProfile, close: () => database.close() }
 }

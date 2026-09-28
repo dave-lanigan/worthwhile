@@ -1,14 +1,26 @@
 <script setup lang="ts">
-import { ArrowDownLeft, ArrowUpRight, ChartNoAxesCombined, Check, ChevronRight, CircleAlert, Landmark, LoaderCircle, Pencil, Plus, RefreshCw, Trash2, TrendingUp, Wallet } from 'lucide-vue-next'
-import { investmentAllocation, type CashFlow, type Category, type Investment, type Liability } from '#shared/schemas/financial-plan'
+import { ArrowDownLeft, ArrowUpRight, ChartNoAxesCombined, ChevronRight, CircleAlert, Landmark, LoaderCircle, Pencil, Plus, RefreshCw, Table2, Trash2, TrendingUp, UserRound, Wallet } from 'lucide-vue-next'
+import { emptyPlan, investmentAllocation, type CashFlow, type Category, type Investment, type Liability } from '#shared/schemas/financial-plan'
 import { annualAmount, monthlyAmount } from '#shared/utils/projection'
 import { netWorthPercentile, percentileLabel, WEALTH_BENCHMARK } from '#shared/utils/wealth-percentile'
 import { money, monthLabel } from '@/lib/format'
+import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card'
 
 definePageMeta({ alias: '/guest' })
 const { isSignedIn } = useAuth()
-const guest = useRoute().path === '/guest' || !isSignedIn.value
-const { draft, dirty, saving, saveError, conflict, loadError, status, forecast, save, reload } = await useFinancialPlan(guest)
+const { user } = useUser()
+const route = useRoute()
+const guest = route.path === '/guest' || !isSignedIn.value
+const showExample = route.path !== '/guest' && !isSignedIn.value
+const exampleCleared = ref(false)
+const greetingIndex = ref(0)
+const greetings = ['Let’s get wealthy.', 'Your future is worth planning for.', 'Small moves build real wealth.']
+const firstName = computed(() => user.value?.firstName || user.value?.fullName?.split(' ')[0] || 'there')
+const greeting = computed(() => greetings[greetingIndex.value]!)
+let greetingTimer: ReturnType<typeof setInterval> | undefined
+onMounted(() => { greetingTimer = setInterval(() => { greetingIndex.value = (greetingIndex.value + 1) % greetings.length }, 7 * 24 * 60 * 60 * 1000) })
+onBeforeUnmount(() => clearInterval(greetingTimer))
+const { draft, dirty, saving, saveError, conflict, loadError, status, forecast, save, clear, reload } = await useFinancialPlan(guest, showExample)
 const start = useState('forecast-start', () => new Date().toISOString().slice(0, 7))
 const activeCategory = ref<Category>('incomes')
 const editorOpen = ref(false)
@@ -16,6 +28,7 @@ const editing = ref<CashFlow | Investment | Liability>()
 const deleting = ref<CashFlow | Investment | Liability>()
 const deleteOpen = ref(false)
 const reloadOpen = ref(false)
+const clearOpen = ref(false)
 const selectedMonth = ref(draft.value.years * 12)
 const chartView = ref('chart')
 const categories = [
@@ -30,6 +43,8 @@ const first = computed(() => forecast.value.result?.points[0])
 const selected = computed(() => forecast.value.result?.points[Math.min(selectedMonth.value, draft.value.years * 12)] ?? first.value)
 const currentPercentile = computed(() => percentileLabel(first.value ? netWorthPercentile(first.value.netWorth) : null))
 const selectedPercentile = computed(() => percentileLabel(selected.value ? netWorthPercentile(selected.value.netWorth) : null))
+const compactPercentile = (label: string) => label.replace('Approx. ', '')
+const compactMoney = (amount: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', notation: 'compact', maximumFractionDigits: 1 }).format(amount / 100)
 const yearlyIncome = computed(() => draft.value.incomes.reduce((total, income) => total + annualAmount(income), 0))
 const selectedPeriod = computed(() => {
   const month = selected.value?.month ?? 0
@@ -85,38 +100,44 @@ function changeYears(value: string | number) {
   draft.value.years = Number(value)
   if (Number.isInteger(draft.value.years) && draft.value.years >= 1 && draft.value.years <= 40) selectedMonth.value = draft.value.years * 12
 }
+function clearExample() {
+  draft.value = emptyPlan()
+  selectedMonth.value = draft.value.years * 12
+  exampleCleared.value = true
+}
 </script>
 
 <template>
   <TooltipProvider :delay-duration="200">
     <div class="app-shell">
       <header class="site-header">
-        <a class="brand" :href="guest ? '/guest' : '/'" aria-label="Worthwhile home"><span class="brand-icon"><ChartNoAxesCombined :size="23" :stroke-width="2" /></span><span>worthwhile<span class="brand-period">.</span></span></a>
-        <div class="header-context"><span class="local-dot" />Personal forecast <span class="header-separator">/</span> USD</div>
-        <div class="local-label"><Button v-if="guest" as-child variant="outline"><NuxtLink to="/sign-in">Sign in</NuxtLink></Button><UserButton v-else /></div>
+        <a class="brand" href="/" aria-label="Worthwhile home"><span class="brand-icon"><ChartNoAxesCombined :size="20" :stroke-width="2" /></span><span>worthwhile.</span></a>
+        <div class="header-context">Personal forecast <span class="header-separator">/</span> USD</div>
+        <div class="local-label"><IconButton v-if="guest" as-child label="Sign in"><NuxtLink to="/sign-in"><UserRound :size="18" /></NuxtLink></IconButton><NuxtLink v-else to="/user" class="profile-avatar" aria-label="Open profile settings"><img v-if="user?.imageUrl" :src="user.imageUrl" :alt="user.fullName || 'Profile'" referrerpolicy="no-referrer"><span v-else>{{ firstName.slice(0, 1).toUpperCase() }}</span></NuxtLink></div>
       </header>
 
       <main>
         <div class="page-heading">
-          <div><p class="eyebrow">YOUR FINANCIAL OUTLOOK</p><h1>Net worth estimator</h1></div>
-          <span v-if="guest" class="save-state" role="status">Temporary plan. Changes are not saved.</span>
-          <span v-else-if="!loadError" class="save-state" role="status" aria-live="polite" data-testid="save-status"><LoaderCircle v-if="saving || (dirty && forecast.result && !saveError)" class="spin" :size="14" /><CircleAlert v-else-if="saveError || !forecast.result" :size="14" /><Check v-else :size="14" />{{ saveError || !forecast.result ? 'Not saved' : saving || dirty ? 'Saving...' : 'Saved' }}</span>
+          <div class="identity-heading">
+            <h1 v-if="showExample">Your example plan</h1><h1 v-else>Hi {{ firstName }}. <span class="greeting-message">{{ greeting }}</span></h1>
+          </div>
+          <div v-if="showExample && !exampleCleared" class="example-controls"><span class="save-state" role="status">Example data only. Sign in to build and save your own plan.</span><IconButton label="Reset example data" @click="clearExample"><RefreshCw :size="16" /></IconButton></div><span v-else-if="guest" class="save-state" role="status">Temporary plan. Changes are not saved.</span>
+          <span v-else-if="!loadError && (saving || dirty || saveError || !forecast.result)" class="save-state" role="status" aria-live="polite" data-testid="save-status"><LoaderCircle v-if="saving || (dirty && forecast.result && !saveError)" class="spin" :size="14" /><CircleAlert v-else :size="14" />{{ saveError || !forecast.result ? 'Not saved' : 'Saving...' }}</span>
         </div>
 
-        <div v-if="loadError" class="feedback error" role="alert"><CircleAlert :size="18" /><div><template v-if="loadError.statusCode === 401"><strong>Your session has expired.</strong><NuxtLink to="/sign-in">Sign in again</NuxtLink></template><template v-else><strong>Could not load your saved plan.</strong><p>Your database has not been changed.</p></template></div><Button variant="outline" :disabled="status === 'pending'" @click="reload"><RefreshCw :size="15" />Retry</Button></div>
+        <div v-if="loadError" class="feedback error" role="alert"><CircleAlert :size="18" /><div><template v-if="loadError.statusCode === 401"><strong>Your session has expired.</strong><NuxtLink to="/sign-in">Sign in again</NuxtLink></template><template v-else><strong>Could not load your saved plan.</strong><p>Your database has not been changed.</p></template></div><IconButton label="Retry loading plan" :disabled="status === 'pending'" @click="reload"><RefreshCw :size="15" /></IconButton></div>
         <template v-else>
-          <div v-if="saveError" class="feedback error" role="alert"><CircleAlert :size="18" /><p>{{ saveError }}</p><Button v-if="conflict" variant="outline" @click="reloadOpen = true"><RefreshCw :size="15" />Reload saved plan</Button><Button v-else variant="outline" :disabled="saving || !forecast.result" @click="save"><RefreshCw :size="15" />Retry</Button></div>
+          <div v-if="saveError" class="feedback error" role="alert"><CircleAlert :size="18" /><p>{{ saveError }}</p><IconButton v-if="conflict" label="Reload saved plan" @click="reloadOpen = true"><RefreshCw :size="15" /></IconButton><IconButton v-else label="Retry saving plan" :disabled="saving || !forecast.result" @click="save"><RefreshCw :size="15" /></IconButton></div>
           <div v-if="forecast.error" class="feedback error" role="alert"><CircleAlert :size="18" /><p>{{ forecast.error }}</p></div>
 
           <section class="overview" aria-label="Net worth summary">
-            <div class="metric"><span class="metric-label">Net worth today</span><strong data-testid="current-worth">{{ first ? money(first.netWorth) : '--' }}</strong><span class="metric-note">Assets minus liabilities</span><span class="percentile-stat" data-testid="current-percentile">{{ currentPercentile }}</span></div>
-            <div class="metric projected"><span class="metric-label">Projected net worth <span class="small-badge">{{ selected ? selectedPeriod : '--' }}</span></span><strong data-testid="projected-worth">{{ selected ? money(selected.netWorth) : '--' }}</strong><span class="metric-note"><TrendingUp :size="14" />{{ money(growth) }} projected change</span><span class="percentile-stat" data-testid="projected-percentile">{{ selectedPercentile }}</span></div>
-            <div class="metric"><span class="metric-label">Monthly surplus</span><strong :class="{ negative: monthlySurplus < 0 }">{{ money(monthlySurplus) }}</strong><span class="metric-note">After expenses &amp; debt payments</span></div>
+            <Card class="metric current"><CardHeader><div class="metric-label"><span class="metric-title">Net worth today</span><Wallet :size="16" /></div><strong data-testid="current-worth">{{ first ? money(first.netWorth) : '--' }}</strong></CardHeader><CardContent><div class="metric-desktop-detail"><p class="metric-note">Assets minus liabilities</p><p class="percentile-stat" data-testid="current-percentile">{{ currentPercentile }}</p></div><p class="metric-mobile-detail" aria-label="Current net worth percentile">{{ compactPercentile(currentPercentile) }}</p></CardContent></Card>
+            <Card class="metric projected"><CardHeader><div class="metric-label"><span class="metric-title">Projected net worth</span><span class="small-badge">{{ selected ? selectedPeriod : '--' }}</span></div><strong data-testid="projected-worth">{{ selected ? money(selected.netWorth) : '--' }}</strong></CardHeader><CardContent><div class="metric-desktop-detail"><p class="metric-note"><TrendingUp :size="14" />{{ money(growth) }} projected change</p><p class="percentile-stat" data-testid="projected-percentile">{{ selectedPercentile }}</p></div><p class="metric-mobile-detail"><TrendingUp :size="13" /><span>{{ compactMoney(growth) }}</span><span aria-label="Projected net worth percentile">{{ compactPercentile(selectedPercentile) }}</span></p></CardContent></Card>
+            <Card class="metric monthly-surplus"><CardHeader><div class="metric-label"><span class="metric-title">Monthly surplus</span><ArrowUpRight :size="16" /></div><strong :class="{ negative: monthlySurplus < 0 }">{{ money(monthlySurplus) }}</strong></CardHeader><CardContent><p class="metric-note">After expenses &amp; debt payments</p><p class="percentile-stat">Available to save or invest</p></CardContent></Card>
           </section>
-          <p class="benchmark-note">Percentiles: U.S. households, all ages, <a :href="WEALTH_BENCHMARK.source" target="_blank" rel="noopener noreferrer">{{ WEALTH_BENCHMARK.year }} Federal Reserve SCF</a>. Not inflation-adjusted; projections use the same historical benchmark, not future wealth rankings.</p>
-
-          <section class="forecast-section" aria-labelledby="forecast-title">
-            <div class="section-heading"><div class="section-title"><h2 id="forecast-title">The view ahead</h2><span class="muted">{{ monthLabel(0, start) }} <ChevronRight :size="13" />{{ monthLabel(draft.years * 12 || 0, start) }}</span></div><Tabs v-model="chartView"><TabsList aria-label="Forecast view"><TabsTrigger value="chart">Chart</TabsTrigger><TabsTrigger value="table">Annual table</TabsTrigger></TabsList></Tabs></div>
+          <Card class="forecast-section" role="region" aria-labelledby="forecast-title">
+            <CardHeader class="section-heading"><div class="section-title"><h2 id="forecast-title">The view ahead</h2><CardDescription>{{ monthLabel(0, start) }} <ChevronRight :size="13" />{{ monthLabel(draft.years * 12 || 0, start) }}</CardDescription></div><Tabs v-model="chartView"><TabsList aria-label="Forecast view"><TabsTrigger value="chart" aria-label="Chart" title="Chart"><ChartNoAxesCombined :size="16" /></TabsTrigger><TabsTrigger value="table" aria-label="Annual table" title="Annual table"><Table2 :size="16" /></TabsTrigger></TabsList></Tabs></CardHeader>
+            <CardContent>
             <div class="forecast-controls">
               <div class="legend" aria-label="Chart legend"><span><i class="legend-dot net-worth" />Net worth</span><span><i class="legend-dot assets" />Assets</span><span><i class="legend-dot debt" />Liabilities</span></div>
               <div class="horizon"><Label for="years">Horizon</Label><Slider :model-value="[draft.years]" :min="1" :max="40" :step="1" aria-label="Forecast horizon" class="horizon-slider" @update:model-value="value => changeYears(value?.[0] ?? 10)" /><Input id="years" :model-value="draft.years" type="number" min="1" max="40" step="1" @update:model-value="changeYears" /><span>years</span></div>
@@ -128,16 +149,18 @@ function changeYears(value: string | number) {
               <div class="month-selector"><Label for="selected-month">{{ monthLabel(selected.month, start) }}</Label><input id="selected-month" v-model.number="selectedMonth" type="range" min="0" :max="draft.years * 12" step="1" aria-label="Selected forecast month" /></div>
               <div><span>Cash</span><strong>{{ money(selected.cash) }}</strong></div><div><span>Investments</span><strong>{{ money(selected.invested) }}</strong></div><div><span>Liabilities</span><strong>{{ money(selected.debt) }}</strong></div><div class="breakdown-worth"><span>Net worth</span><strong>{{ money(selected.netWorth) }}</strong></div>
             </div>
-          </section>
+            </CardContent>
+          </Card>
 
           <div v-if="forecast.result?.firstShortfall" class="feedback warning" role="status"><CircleAlert :size="18" /><p><strong>Cash shortfall from {{ monthLabel(forecast.result.firstShortfall, start) }}.</strong> Negative cash is unfunded; investments are not sold automatically.</p></div>
           <div v-if="forecast.result?.growingDebts.length" class="feedback warning" role="status"><CircleAlert :size="18" /><p><strong>Payments do not cover interest:</strong> {{ draft.liabilities.filter(item => forecast.result?.growingDebts.includes(item.id)).map(item => item.name).join(', ') }}.</p></div>
 
-          <section class="financial-section" aria-labelledby="financial-title">
-            <div class="section-heading"><div class="section-title"><h2 id="financial-title">Your financial picture</h2><span class="muted">The starting point for your forecast</span></div><div class="cash-setting"><Wallet :size="16" /><Label for="starting-cash">Starting cash</Label><span class="cash-input"><span>$</span><Input id="starting-cash" :model-value="draft.startingCash / 100" type="number" min="0" step="0.01" max="1000000000000" @update:model-value="value => draft.startingCash = Math.round(Number(value) * 100)" /></span></div></div>
+          <Card class="financial-section" role="region" aria-labelledby="financial-title">
+            <CardHeader class="section-heading"><div class="section-title"><h2 id="financial-title">Your financial picture</h2><CardDescription>The starting point for your forecast</CardDescription></div><div class="financial-actions"><IconButton v-if="!guest" label="Clear all" :disabled="saving || !!loadError" @click="clearOpen = true"><Trash2 :size="16" /></IconButton><div class="cash-setting"><Wallet :size="16" /><Label for="starting-cash">Starting cash</Label><span class="cash-input"><span>$</span><Input id="starting-cash" :model-value="draft.startingCash / 100" type="number" min="0" step="0.01" max="1000000000000" @update:model-value="value => draft.startingCash = Math.round(Number(value) * 100)" /></span></div></div></CardHeader>
+            <CardContent>
             <Tabs v-model="activeCategory" class="financial-tabs">
-              <TabsList class="category-tabs" aria-label="Financial categories"><TabsTrigger v-for="category in categories" :key="category.key" :value="category.key"><component :is="category.icon" :size="16" /><span>{{ category.label }}</span><span class="entry-count">{{ draft[category.key].length }}</span></TabsTrigger></TabsList>
-              <div class="ledger-toolbar"><div><h3>{{ currentCategory.label }}</h3><span class="muted">{{ money(categoryTotals[activeCategory]) }}{{ activeCategory === 'incomes' || activeCategory === 'expenses' ? ' / month' : ' current balance' }}</span><span v-if="activeCategory === 'incomes'" class="muted" data-testid="yearly-income">{{ money(yearlyIncome, true) }} / year</span><span v-if="activeCategory === 'investments'" class="muted">{{ fixedMonthly ? `${money(fixedMonthly, true)} / month fixed; ` : '' }}{{ cashAllocation.toFixed(2) }}% of {{ fixedMonthly ? 'remainder' : 'surplus' }} stays in cash</span></div><Button variant="outline" @click="edit()"><Plus :size="16" />Add {{ currentCategory.singular }}</Button></div>
+              <TabsList class="category-rail" aria-label="Financial categories"><TabsTrigger v-for="category in categories" :key="category.key" :value="category.key" class="category-rail-item"><span class="category-rail-label"><component :is="category.icon" :size="16" /><span>{{ category.label }}</span><span class="entry-count">{{ draft[category.key].length }}</span></span><span class="category-rail-total">{{ money(categoryTotals[category.key]) }}</span></TabsTrigger></TabsList>
+              <div class="ledger-toolbar"><div><h3>{{ currentCategory.label }}</h3><span class="muted">{{ activeCategory === 'incomes' || activeCategory === 'expenses' ? 'Monthly total' : 'Current balance' }}: {{ money(categoryTotals[activeCategory]) }}</span><span v-if="activeCategory === 'incomes'" class="muted" data-testid="yearly-income">{{ money(yearlyIncome, true) }} / year</span><span v-if="activeCategory === 'investments'" class="muted">{{ fixedMonthly ? `${money(fixedMonthly, true)} / month fixed; ` : '' }}{{ cashAllocation.toFixed(2) }}% of {{ fixedMonthly ? 'remainder' : 'surplus' }} stays in cash</span></div><IconButton variant="default" :label="`Add ${currentCategory.singular}`" @click="edit()"><Plus :size="18" /></IconButton></div>
               <Table v-if="entries.length" class="ledger-table" role="table">
                 <TableCaption class="sr-only">{{ currentCategory.label }} entries</TableCaption>
                 <TableHeader role="rowgroup"><TableRow role="row"><TableHead role="columnheader">Name</TableHead><TableHead role="columnheader" class="text-right">{{ activeCategory === 'incomes' || activeCategory === 'expenses' ? 'Amount' : 'Current balance' }}</TableHead><TableHead role="columnheader">{{ activeCategory === 'investments' ? 'Annual ROI' : activeCategory === 'liabilities' ? 'Interest APR' : 'Frequency' }}</TableHead><TableHead role="columnheader" class="text-right">{{ activeCategory === 'investments' ? 'Surplus allocation' : activeCategory === 'liabilities' ? 'Monthly payment' : 'Monthly total' }}</TableHead><TableHead v-if="activeCategory === 'incomes'" role="columnheader" class="text-right">Yearly total</TableHead><TableHead role="columnheader"><span class="sr-only">Actions</span></TableHead></TableRow></TableHeader>
@@ -154,13 +177,15 @@ function changeYears(value: string | number) {
               </Table>
               <div v-else class="empty-ledger"><span class="empty-icon"><component :is="currentCategory.icon" :size="23" /></span><h3>No {{ activeCategory === 'incomes' ? 'income sources' : currentCategory.label.toLowerCase() }} yet</h3><Button variant="link" @click="edit()"><Plus :size="15" />Add your first {{ currentCategory.singular }}</Button></div>
             </Tabs>
-          </section>
-          <footer class="page-footer"><p>Monthly compounding. Custom surplus allocations. Fixed returns; no taxes or inflation. Estimates, not guarantees.</p></footer>
+            </CardContent>
+          </Card>
+          <footer class="page-footer"><p>Monthly compounding. Custom surplus allocations. Fixed returns; no taxes or inflation. Estimates, not guarantees.</p><nav aria-label="Legal and support"><a href="/privacy">Privacy policy</a><a href="/terms">Terms of use</a><a href="mailto:support@worthwhile.app">Contact</a></nav></footer>
         </template>
       </main>
       <FinancialEntryDialog v-model:open="editorOpen" :category="activeCategory" :entry="editing" :investments="draft.investments" @save="storeEntry" />
       <AlertDialog v-model:open="deleteOpen"><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete {{ deleting?.name }}?</AlertDialogTitle><AlertDialogDescription>This removes the entry from your forecast.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction @click="removeEntry"><Trash2 :size="15" />Delete entry</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
       <AlertDialog v-model:open="reloadOpen"><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Reload the saved plan?</AlertDialogTitle><AlertDialogDescription>Unsaved changes in this tab will be replaced with the latest saved version.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Keep editing</AlertDialogCancel><AlertDialogAction @click="reload"><RefreshCw :size="15" />Reload plan</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
+      <AlertDialog v-model:open="clearOpen"><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Clear your entire plan?</AlertDialogTitle><AlertDialogDescription>This permanently removes all financial entries and resets your starting cash. Your profile details stay saved.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Keep plan</AlertDialogCancel><AlertDialogAction @click="clear"><Trash2 :size="15" />Clear all</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
     </div>
   </TooltipProvider>
 </template>

@@ -11,7 +11,7 @@ test('the homepage is public while saved plans require sign-in', async ({ page, 
   }
   const publicResponse = await request.get('/', { maxRedirects: 0 })
   expect(publicResponse.status()).toBe(200)
-  expect(await publicResponse.text()).toContain('Net worth estimator')
+  expect(await publicResponse.text()).toContain('Example User’s plan')
   await setupClerkTestingToken({ page })
   const planRequests: string[] = []
   page.on('request', request => {
@@ -22,17 +22,17 @@ test('the homepage is public while saved plans require sign-in', async ({ page, 
   for (let navigation = response!.request(); navigation; navigation = navigation.redirectedFrom()!) {
     expect(new URL(navigation.url()).pathname).not.toMatch(/^\/sign-(in|up)/)
   }
-  expect(await response!.text()).toContain('Net worth estimator')
+  expect(await response!.text()).toContain('Example User’s plan')
   await expect(page).toHaveURL(/\/$/)
-  await expect(page.getByRole('heading', { name: 'Net worth estimator' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Example User’s plan' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Save changes', exact: true })).toHaveCount(0)
   await expect(page.locator('body')).not.toContainText('Saved locally')
   await expect(page.locator('body')).not.toContainText('Private workspace')
   await expect(page.locator('body')).not.toContainText('Guest workspace')
   await expect(page.locator('body')).not.toContainText('Stored in SQLite on this computer')
-  await expect(page.getByTestId('current-worth')).toHaveText('$0')
+  await expect(page.getByTestId('current-worth')).toHaveText('$31,200')
   await page.getByLabel('Starting cash', { exact: true }).fill('2500')
-  await expect(page.getByTestId('current-worth')).toHaveText('$2,500')
+  await expect(page.getByTestId('current-worth')).toHaveText('$25,450')
   await expect(page.locator('.forecast-chart svg')).toBeVisible()
   expect(planRequests).toEqual([])
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)

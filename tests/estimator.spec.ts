@@ -69,7 +69,7 @@ test('edit finances, inspect the chart, autosave and reload', async ({ page }, t
   expect(paths).toBeGreaterThan(2)
   await page.getByLabel('Selected forecast month').fill('120')
   await expect(page.locator('.month-selector label')).toContainText('2036')
-  await expect(page.getByTestId('save-status')).toHaveText('Saved')
+  await expect(page.getByTestId('save-status')).toHaveText('')
   await page.reload()
   await expect(page.getByTestId('current-worth')).toHaveText('$13,800')
   await expect(page.getByLabel('Horizon', { exact: true })).toHaveValue('20')
@@ -91,7 +91,7 @@ test('edit finances, inspect the chart, autosave and reload', async ({ page }, t
     await page.getByRole('button', { name: 'Delete entry', exact: true }).click()
     await expect(page.locator('.empty-ledger')).toBeVisible()
   }
-  await expect(page.getByTestId('save-status')).toHaveText('Saved')
+  await expect(page.getByTestId('save-status')).toHaveText('')
   await page.reload()
   await expect(page.getByTestId('current-worth')).toHaveText('$5,000')
 })
@@ -108,7 +108,7 @@ test('shows deficits, handles failed saves, and rejects conflicting updates', as
   await expect(page.getByRole('cell', { name: 'Underpaid loan', exact: false }).first()).toBeVisible()
   await page.unroute('**/api/plan')
   await page.getByRole('button', { name: 'Retry', exact: true }).click()
-  await expect(page.getByTestId('save-status')).toHaveText('Saved')
+  await expect(page.getByTestId('save-status')).toHaveText('')
   await expect(page.getByRole('alert')).toHaveCount(0)
   const latest = await (await request.get('/api/plan')).json()
   expect((await request.put('/api/plan', { data: { plan: latest.plan, revision: latest.revision } })).ok()).toBeTruthy()
@@ -171,7 +171,7 @@ test('adjusts investment allocations and follows the selected projection month',
   await page.getByLabel('Surplus allocation (%)', { exact: true }).fill('50')
   await page.getByRole('button', { name: 'Apply changes' }).click()
   await expect(page.getByText('25.00% of surplus stays in cash', { exact: true })).toBeVisible()
-  await expect(page.getByTestId('save-status')).toHaveText('Saved')
+  await expect(page.getByTestId('save-status')).toHaveText('')
   await page.reload()
   await page.getByRole('tab', { name: /^Investments/ }).click()
   await expect(page.getByRole('row').filter({ hasText: 'Growth fund' })).toContainText('50%')
@@ -179,7 +179,7 @@ test('adjusts investment allocations and follows the selected projection month',
   await page.getByLabel('Selected forecast month').fill('0')
   await expect(page.locator('.projected .small-badge')).toHaveText('Today')
   await expect(page.getByTestId('projected-worth')).toHaveText('$0')
-  await expect(page.getByTestId('save-status')).toHaveText('Saved')
+  await expect(page.getByTestId('save-status')).toHaveText('')
 })
 
 test('creates monthly dollar targets and switches allocation modes without losing settings', async ({ page, request }, testInfo) => {
@@ -203,7 +203,7 @@ test('creates monthly dollar targets and switches allocation modes without losin
   await expect(page.getByTestId('projected-worth')).toHaveText('$1,000')
   await expect(page.locator('.month-breakdown')).toContainText('$175')
   await expect(page.locator('.month-breakdown')).toContainText('$825')
-  await expect(page.getByTestId('save-status')).toHaveText('Saved')
+  await expect(page.getByTestId('save-status')).toHaveText('')
   const saved = await (await request.get('/api/plan')).json()
   expect(saved.plan.investments).toEqual(expect.arrayContaining([
     expect.objectContaining({ name: 'HSA', monthlyContribution: 25050 }),
@@ -235,7 +235,7 @@ test('creates monthly dollar targets and switches allocation modes without losin
   await page.getByLabel('Monthly contribution (USD)', { exact: true }).fill('0')
   await page.getByRole('button', { name: 'Apply changes', exact: true }).click()
   await expect(page.getByRole('row').filter({ hasText: 'HSA' })).toContainText('$0.00 / month')
-  await expect(page.getByTestId('save-status')).toHaveText('Saved')
+  await expect(page.getByTestId('save-status')).toHaveText('')
   const updated = await (await request.get('/api/plan')).json()
   const hsa = updated.plan.investments.find((item: { name: string }) => item.name === 'HSA')
   expect(hsa.monthlyContribution).toBe(0)
