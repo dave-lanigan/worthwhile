@@ -25,6 +25,11 @@ test('the homepage is public while saved plans require sign-in', async ({ page, 
   expect(await response!.text()).toContain('Net worth estimator')
   await expect(page).toHaveURL(/\/$/)
   await expect(page.getByRole('heading', { name: 'Net worth estimator' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Save changes', exact: true })).toHaveCount(0)
+  await expect(page.locator('body')).not.toContainText('Saved locally')
+  await expect(page.locator('body')).not.toContainText('Private workspace')
+  await expect(page.locator('body')).not.toContainText('Guest workspace')
+  await expect(page.locator('body')).not.toContainText('Stored in SQLite on this computer')
   await expect(page.getByTestId('current-worth')).toHaveText('$0')
   await page.getByLabel('Starting cash', { exact: true }).fill('2500')
   await expect(page.getByTestId('current-worth')).toHaveText('$2,500')
@@ -79,6 +84,103 @@ test('continue without signing in opens an isolated editable guest plan', async 
   expect(errors).toEqual([])
   expect((await request.get('/api/plan')).status()).toBe(401)
   expect((await request.put('/api/plan', { data: {} })).status()).toBe(401)
+})
+
+test('responsive financial workflows keep forms and actions reachable', async ({ page }, testInfo) => {
+  const mobile = testInfo.project.name === 'mobile'
+  const errors: string[] = []
+  page.on('pageerror', error => errors.push(error.message))
+  await setupClerkTestingToken({ page })
+  const sizes = mobile ? [{ width: 320, height: 700 }, { width: 390, height: 844 }, { width: 844, height: 390 }] : [page.viewportSize()!]
+  for (const size of sizes) {
+    await page.setViewportSize(size)
+    await page.goto('/guest')
+    await expect(page.getByTestId('current-worth')).toHaveText('$0')
+    const cases = [
+      { category: 'Income', singular: 'income', fields: { 'Amount (USD)': '1200' } },
+      { category: 'Investments', singular: 'investment', fields: { 'Current value (USD)': '100', 'Annual ROI (%)': '5' } },
+      { category: 'Expenses', singular: 'expense', fields: { 'Amount (USD)': '200' } },
+      { category: 'Liabilities', singular: 'liability', fields: { 'Outstanding balance (USD)': '100', 'Interest APR (%)': '1', 'Monthly payment (USD)': '10' } },
+    ]
+    for (const entry of cases) {
+      await page.getByRole('tab', { name: new RegExp(`^${entry.category}`) }).click()
+      const trigger = page.getByRole('button', { name: `Add ${entry.singular}`, exact: true })
+      await trigger.click()
+      const dialog = page.getByRole('dialog')
+      await expect(dialog).toBeVisible()
+      if (mobile) {
+        await expect(dialog).toBeFocused()
+        await page.evaluate(() => {
+          Object.defineProperty(window.visualViewport!, 'height', { configurable: true, value: 260 })
+          Object.defineProperty(window.visualViewport!, 'offsetTop', { configurable: true, value: 35 })
+          window.visualViewport!.dispatchEvent(new Event('resize'))
+        })
+        await expect.poll(async () => {
+          const bounds = await dialog.boundingBox()
+          return !!bounds && bounds.y >= 35 && bounds.y + bounds.height <= 295
+        }).toBe(true)
+      } else {
+        await expect(page.getByLabel('Name', { exact: true })).toBeFocused()
+      }
+      const name = `Example ${entry.singular} with a deliberately long descriptive name`
+      await page.getByLabel('Name', { exact: true }).fill(name)
+      for (const [label, value] of Object.entries(entry.fields)) await page.getByLabel(label, { exact: true }).fill(value!)
+      if (entry.singular === 'investment') {
+        await page.getByRole('tab', { name: '$ per month', exact: true }).click()
+        await page.getByLabel('Monthly contribution (USD)', { exact: true }).fill('50')
+      }
+      const submit = dialog.getByRole('button', { name: `Add ${entry.singular}`, exact: true })
+      await submit.scrollIntoViewIfNeeded()
+      if (mobile) {
+        const bounds = await submit.boundingBox()
+        expect(bounds!.y).toBeGreaterThanOrEqual(35)
+        expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(295)
+        await page.screenshot({ path: testInfo.outputPath(`${size.width}-${entry.singular}-keyboard.png`) })
+      }
+      await submit.click()
+      await expect(dialog).toHaveCount(0)
+      if (mobile) {
+        await page.evaluate(() => {
+          Reflect.deleteProperty(window.visualViewport!, 'height')
+          Reflect.deleteProperty(window.visualViewport!, 'offsetTop')
+          window.visualViewport!.dispatchEvent(new Event('resize'))
+        })
+      }
+      await expect(trigger).toBeFocused()
+      const row = page.getByRole('row').filter({ hasText: name })
+      await expect(row).toBeVisible()
+      const edit = page.getByRole('button', { name: `Edit ${name}`, exact: true })
+      if (mobile) {
+        const bounds = await edit.boundingBox()
+        expect(bounds!.width).toBeGreaterThanOrEqual(44)
+        expect(bounds!.height).toBeGreaterThanOrEqual(44)
+        expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(size.width)
+        expect(await page.locator('.ledger-table').evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true)
+      }
+      await edit.click()
+      await page.getByLabel('Name', { exact: true }).fill(`${name} edited`)
+      await page.getByRole('button', { name: 'Apply changes', exact: true }).click()
+      await expect(row).toContainText(`${name} edited`)
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+      if (entry.singular === 'income') await page.screenshot({ path: testInfo.outputPath(`${size.width}-ledger.png`), fullPage: true })
+      await page.getByRole('button', { name: `Delete ${name} edited`, exact: true }).click()
+      await page.getByRole('button', { name: 'Cancel', exact: true }).click()
+      await expect(page.getByRole('alertdialog')).toHaveCount(0)
+      await expect(row).toBeVisible()
+      await page.getByRole('button', { name: `Delete ${name} edited`, exact: true }).click()
+      await page.getByRole('button', { name: 'Delete entry', exact: true }).click()
+      await expect(page.getByRole('alertdialog')).toHaveCount(0)
+      await expect(page.locator('.empty-ledger')).toBeVisible()
+    }
+    await page.getByLabel('Selected forecast month').fill('12')
+    await expect(page.locator('.month-selector label')).not.toHaveText('')
+    await page.getByRole('tab', { name: 'Annual table', exact: true }).click()
+    await expect(page.locator('.annual-table tbody tr').first()).toBeVisible()
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    await page.getByRole('tab', { name: 'Chart', exact: true }).click()
+    await expect(page.locator('.forecast-chart svg')).toBeVisible()
+  }
+  expect(errors).toEqual([])
 })
 
 test('different signed-in accounts can save only their own plans', async ({ page, browser, baseURL }) => {
