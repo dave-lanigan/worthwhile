@@ -515,6 +515,7 @@ main { max-width: 1320px; padding-top: 48px; }
   .chart-shell, .forecast-chart { min-height: 280px; height: 280px !important; }
   .month-breakdown { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
   .financial-section { margin-top: 20px; }
+  .financial-section > [data-slot='card-header'], .financial-section > [data-slot='card-content'] { padding-inline: 16px; }
   .financial-section .section-heading { align-items: flex-start; }
   .category-rail { gap: 22px; }
   .category-rail [data-slot='tabs-trigger'].category-rail-item { padding-right: 0; }
