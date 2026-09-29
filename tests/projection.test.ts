@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { emptyPlan, financialPlanSchema } from '../shared/schemas/financial-plan'
 import { annualAmount, monthlyAmount, projectNetWorth, simulateNetWorth } from '../shared/utils/projection'
-import { NET_WORTH_PERCENTILE_THRESHOLDS, netWorthPercentile, percentileLabel } from '../shared/utils/wealth-percentile'
+import { AGE_NET_WORTH_PERCENTILE_THRESHOLDS } from '../shared/utils/age-wealth-percentile-thresholds'
+import { ageGroupNetWorthPercentile, ageOnDate, NET_WORTH_PERCENTILE_THRESHOLDS, netWorthPercentile, percentileLabel, wealthAgeBand } from '../shared/utils/wealth-percentile'
 
 describe('net worth projections', () => {
   it('starts empty, includes today, and never mutates the input', () => {
@@ -200,5 +201,29 @@ describe('U.S. household wealth benchmarks', () => {
     expect(percentileLabel(0)).toBe('Below 1st percentile')
     expect(percentileLabel(100)).toBe('Above 99th percentile')
     expect(percentileLabel(null)).toBe('--')
+  })
+
+  it('derives weighted thresholds for every selected age band', () => {
+    Object.values(AGE_NET_WORTH_PERCENTILE_THRESHOLDS).forEach(thresholds => {
+      expect(thresholds).toHaveLength(99)
+      thresholds.forEach((dollars, index) => {
+        if (index) expect(dollars).toBeGreaterThan(thresholds[index - 1]!)
+      })
+    })
+    expect(AGE_NET_WORTH_PERCENTILE_THRESHOLDS.under35[49]).toBe(39040)
+    expect(AGE_NET_WORTH_PERCENTILE_THRESHOLDS.ages35to44[49]).toBe(135300)
+    expect(AGE_NET_WORTH_PERCENTILE_THRESHOLDS.ages75plus[49]).toBe(334700)
+  })
+
+  it('uses the age at the comparison date and never guesses an invalid birth date', () => {
+    expect(ageOnDate('1990-09-30', new Date('2026-09-29T00:00:00Z'))).toBe(35)
+    expect(ageOnDate('1990-09-30', new Date('2026-09-30T00:00:00Z'))).toBe(36)
+    expect(ageOnDate('2027-01-01', new Date('2026-01-01T00:00:00Z'))).toBeNull()
+    expect(ageOnDate('1990-02-30', new Date('2026-01-01T00:00:00Z'))).toBeNull()
+    expect(wealthAgeBand(34)).toBe('under35')
+    expect(wealthAgeBand(35)).toBe('ages35to44')
+    expect(wealthAgeBand(75)).toBe('ages75plus')
+    expect(ageGroupNetWorthPercentile(3904000, '2000-01-01', new Date('2026-01-01T00:00:00Z'))).toEqual({ band: 'under35', percentile: 50 })
+    expect(ageGroupNetWorthPercentile(3904000, '', new Date('2026-01-01T00:00:00Z'))).toBeNull()
   })
 })

@@ -3,7 +3,7 @@ import { ArrowDownLeft, ArrowUpRight, BookmarkPlus, ChartNoAxesCombined, Chevron
 import { DropdownMenuRoot, DropdownMenuTrigger, DropdownMenuPortal, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem } from 'reka-ui'
 import { emptyPlan, investmentAllocation, type CashFlow, type Category, type Investment, type Liability } from '#shared/schemas/financial-plan'
 import { annualAmount, monthlyAmount, simulateNetWorth } from '#shared/utils/projection'
-import { netWorthPercentile, percentileLabel, WEALTH_BENCHMARK } from '#shared/utils/wealth-percentile'
+import { ageGroupNetWorthPercentile, netWorthPercentile, percentileLabel, WEALTH_AGE_BANDS, WEALTH_BENCHMARK } from '#shared/utils/wealth-percentile'
 import { money, monthLabel } from '@/lib/format'
 import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card'
 import { NumberField, NumberFieldContent, NumberFieldDecrement, NumberFieldIncrement, NumberFieldInput } from '@/components/ui/number-field'
@@ -24,6 +24,7 @@ let greetingTimer: ReturnType<typeof setInterval> | undefined
 onMounted(() => { greetingTimer = setInterval(() => { greetingIndex.value = (greetingIndex.value + 1) % greetings.length }, 7 * 24 * 60 * 60 * 1000) })
 onBeforeUnmount(() => clearInterval(greetingTimer))
 const { draft, dirty, saving, saveError, conflict, loadError, status, forecast, activeProfile, profiles, selectProfile, createProfile, save, clear, reload } = await useFinancialPlan(guest, showExample)
+const { profile: userProfile } = await useUserProfile(guest)
 const start = useState('forecast-start', () => new Date().toISOString().slice(0, 7))
 const activeCategory = ref<Category>('incomes')
 const editorOpen = ref(false)
@@ -54,8 +55,17 @@ const currentCategory = computed(() => categories.find(category => category.key 
 const entries = computed(() => draft.value[activeCategory.value])
 const first = computed(() => forecast.value.result?.points[0])
 const selected = computed(() => forecast.value.result?.points[Math.min(selectedMonth.value, draft.value.years * 12)] ?? first.value)
+function comparisonDate(month: number): Date {
+  const [year, startMonth] = start.value.split('-').map(Number)
+  return Number.isInteger(year) && Number.isInteger(startMonth) ? new Date(Date.UTC(year!, startMonth! - 1 + month, 1)) : new Date(NaN)
+}
+function ageComparison(netWorth: number | undefined, month: number) {
+  return netWorth === undefined ? null : ageGroupNetWorthPercentile(netWorth, userProfile.value.birthDate, comparisonDate(month))
+}
 const currentPercentile = computed(() => percentileLabel(first.value ? netWorthPercentile(first.value.netWorth) : null))
 const selectedPercentile = computed(() => percentileLabel(selected.value ? netWorthPercentile(selected.value.netWorth) : null))
+const currentAgeComparison = computed(() => ageComparison(first.value?.netWorth, 0))
+const selectedAgeComparison = computed(() => ageComparison(selected.value?.netWorth, selected.value?.month ?? 0))
 const compactPercentile = (label: string) => label.replace('Approx. ', '')
 const compactMoney = (amount: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', notation: 'compact', maximumFractionDigits: 1 }).format(amount / 100)
 const yearlyIncome = computed(() => draft.value.incomes.reduce((total, income) => total + annualAmount(income), 0))
@@ -222,10 +232,11 @@ if (!guest) {
           <div v-if="forecast.error" class="feedback error" role="alert"><CircleAlert :size="18" /><p>{{ forecast.error }}</p></div>
 
           <section class="overview" aria-label="Net worth summary">
-            <Card class="metric current"><CardHeader><div class="metric-label"><span class="metric-title">Net worth today</span></div><strong data-testid="current-worth">{{ first ? money(first.netWorth) : '--' }}</strong></CardHeader><CardContent><div class="metric-desktop-detail"><p class="metric-note">Assets minus liabilities</p><p class="percentile-stat" data-testid="current-percentile">{{ currentPercentile }}</p></div><p class="metric-mobile-detail" aria-label="Current net worth percentile">{{ compactPercentile(currentPercentile) }}</p></CardContent></Card>
-            <Card class="metric projected"><CardHeader><div class="metric-label"><span class="metric-title">Projected net worth</span><span class="small-badge">{{ selected ? selectedPeriod : '--' }}</span></div><strong data-testid="projected-worth">{{ selected ? money(selected.netWorth) : '--' }}</strong></CardHeader><CardContent><div class="metric-desktop-detail"><p class="metric-note"><TrendingUp :size="14" />{{ money(growth) }} projected change</p><p class="percentile-stat" data-testid="projected-percentile">{{ selectedPercentile }}</p></div><p class="metric-mobile-detail"><TrendingUp :size="13" /><span>{{ compactMoney(growth) }}</span><span aria-label="Projected net worth percentile">{{ compactPercentile(selectedPercentile) }}</span></p></CardContent></Card>
+            <Card class="metric current"><CardHeader><div class="metric-label"><span class="metric-title">Net worth today</span></div><strong data-testid="current-worth">{{ first ? money(first.netWorth) : '--' }}</strong></CardHeader><CardContent><p class="metric-note">Assets minus liabilities</p><div class="percentile-comparisons"><p class="percentile-stat" data-testid="current-percentile">All households <span aria-hidden="true">·</span> {{ compactPercentile(currentPercentile) }}</p><p v-if="currentAgeComparison" class="percentile-stat" data-testid="current-age-percentile">{{ WEALTH_AGE_BANDS[currentAgeComparison.band].label }} <span aria-hidden="true">·</span> {{ compactPercentile(percentileLabel(currentAgeComparison.percentile)) }}</p><p v-else class="percentile-stat age-percentile-unavailable"><NuxtLink :to="settingsLink">Add a birth date</NuxtLink> to compare with your age group.</p></div></CardContent></Card>
+            <Card class="metric projected"><CardHeader><div class="metric-label"><span class="metric-title">Projected net worth</span><span class="small-badge">{{ selected ? selectedPeriod : '--' }}</span></div><strong data-testid="projected-worth">{{ selected ? money(selected.netWorth) : '--' }}</strong></CardHeader><CardContent><p class="metric-note"><TrendingUp :size="14" />{{ money(growth) }} projected change</p><div class="percentile-comparisons"><p class="percentile-stat" data-testid="projected-percentile">All households <span aria-hidden="true">·</span> {{ compactPercentile(selectedPercentile) }}</p><p v-if="selectedAgeComparison" class="percentile-stat" data-testid="projected-age-percentile">{{ WEALTH_AGE_BANDS[selectedAgeComparison.band].label }} <span aria-hidden="true">·</span> {{ compactPercentile(percentileLabel(selectedAgeComparison.percentile)) }}</p><p v-else class="percentile-stat age-percentile-unavailable"><NuxtLink :to="settingsLink">Add a birth date</NuxtLink> to compare with your age group.</p></div></CardContent></Card>
             <Card class="metric monthly-surplus"><CardHeader><div class="metric-label"><span class="metric-title">Monthly surplus</span><ArrowUpRight :size="16" /></div><strong :class="{ negative: monthlySurplus < 0 }">{{ money(monthlySurplus) }}</strong></CardHeader><CardContent><p class="metric-note">After expenses &amp; debt payments</p><p class="percentile-stat">Available to save or invest</p></CardContent></Card>
           </section>
+          <p class="benchmark-note">Wealth comparisons use {{ WEALTH_BENCHMARK.year }} dollars and the <a :href="WEALTH_BENCHMARK.source" target="_blank" rel="noreferrer">{{ WEALTH_BENCHMARK.year }} Federal Reserve SCF</a>. “All U.S. households” uses the survey-wide thresholds; age-group thresholds are weighted calculations from its public microdata. They compare household/primary-economic-unit net worth, not future wealth rankings, and are educational estimates—not financial advice.</p>
           <Card class="forecast-section" role="region" aria-labelledby="forecast-title">
             <CardHeader class="section-heading forecast-heading">
               <div class="section-title"><h2 id="forecast-title">The view ahead</h2><CardDescription>{{ monthLabel(0, start) }} <ChevronRight :size="13" />{{ monthLabel(draft.years * 12 || 0, start) }}</CardDescription></div>

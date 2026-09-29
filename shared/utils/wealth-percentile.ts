@@ -1,7 +1,20 @@
+import { AGE_NET_WORTH_PERCENTILE_THRESHOLDS } from './age-wealth-percentile-thresholds'
+
 export const WEALTH_BENCHMARK = {
   year: 2022,
   source: 'https://www.federalreserve.gov/econres/scfindex.htm',
   extract: 'https://www.federalreserve.gov/econres/files/scfp2022excel.zip',
+}
+
+export type WealthAgeBand = keyof typeof AGE_NET_WORTH_PERCENTILE_THRESHOLDS
+
+export const WEALTH_AGE_BANDS: Record<WealthAgeBand, { label: string }> = {
+  under35: { label: 'Under 35' },
+  ages35to44: { label: 'Ages 35–44' },
+  ages45to54: { label: 'Ages 45–54' },
+  ages55to64: { label: 'Ages 55–64' },
+  ages65to74: { label: 'Ages 65–74' },
+  ages75plus: { label: 'Ages 75+' },
 }
 
 export const NET_WORTH_PERCENTILE_THRESHOLDS = [
@@ -17,19 +30,52 @@ export const NET_WORTH_PERCENTILE_THRESHOLDS = [
   2162050, 2383940, 2684200, 3100330, 3795600, 4694300, 6178000, 8406000, 13615400,
 ] as const
 
-export function netWorthPercentile(cents: number): number | null {
+function percentileFromThresholds(cents: number, thresholds: readonly number[]): number | null {
   if (!Number.isSafeInteger(cents)) return null
   const dollars = cents / 100
-  if (dollars < NET_WORTH_PERCENTILE_THRESHOLDS[0]) return 0
-  if (dollars > NET_WORTH_PERCENTILE_THRESHOLDS.at(-1)!) return 100
-  for (let index = 1; index < NET_WORTH_PERCENTILE_THRESHOLDS.length; index++) {
-    const upper = NET_WORTH_PERCENTILE_THRESHOLDS[index]!
+  if (dollars < thresholds[0]!) return 0
+  if (dollars > thresholds.at(-1)!) return 100
+  for (let index = 1; index < thresholds.length; index++) {
+    const upper = thresholds[index]!
     if (dollars <= upper) {
-      const lower = NET_WORTH_PERCENTILE_THRESHOLDS[index - 1]!
+      const lower = thresholds[index - 1]!
       return index + (dollars - lower) / (upper - lower)
     }
   }
   return 99
+}
+
+export function netWorthPercentile(cents: number): number | null {
+  return percentileFromThresholds(cents, NET_WORTH_PERCENTILE_THRESHOLDS)
+}
+
+export function wealthAgeBand(age: number): WealthAgeBand | null {
+  if (!Number.isInteger(age) || age < 0 || age > 120) return null
+  if (age < 35) return 'under35'
+  if (age < 45) return 'ages35to44'
+  if (age < 55) return 'ages45to54'
+  if (age < 65) return 'ages55to64'
+  if (age < 75) return 'ages65to74'
+  return 'ages75plus'
+}
+
+export function ageOnDate(birthDate: string, comparisonDate: Date): number | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(birthDate) || Number.isNaN(comparisonDate.getTime())) return null
+  const [year, month, day] = birthDate.split('-').map(Number)
+  const parsedBirthDate = new Date(Date.UTC(year!, month! - 1, day!))
+  if (parsedBirthDate.getUTCFullYear() !== year || parsedBirthDate.getUTCMonth() !== month! - 1 || parsedBirthDate.getUTCDate() !== day) return null
+  const comparisonYear = comparisonDate.getUTCFullYear()
+  const comparisonMonth = comparisonDate.getUTCMonth()
+  const comparisonDay = comparisonDate.getUTCDate()
+  let age = comparisonYear - year!
+  if (comparisonMonth < month! - 1 || (comparisonMonth === month! - 1 && comparisonDay < day!)) age -= 1
+  return age < 0 || age > 120 ? null : age
+}
+
+export function ageGroupNetWorthPercentile(cents: number, birthDate: string, comparisonDate: Date): { band: WealthAgeBand, percentile: number | null } | null {
+  const age = ageOnDate(birthDate, comparisonDate)
+  const band = age === null ? null : wealthAgeBand(age)
+  return band ? { band, percentile: percentileFromThresholds(cents, AGE_NET_WORTH_PERCENTILE_THRESHOLDS[band]) } : null
 }
 
 export function percentileLabel(percentile: number | null): string {
