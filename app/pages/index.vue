@@ -254,7 +254,7 @@ if (!guest) {
                   <Slider :model-value="[portfolioVolatility]" :min="0" :max="40" :step="0.5" aria-label="Annual volatility" @update:model-value="value => changePortfolioAssumption('volatility', value?.[0] ?? portfolioVolatility)" />
                 </div>
               </template>
-              <div class="horizon"><NumberField id="years" :model-value="draft.years" :min="1" :max="40" :step="1" :format-options="{ style: 'unit', unit: 'year', unitDisplay: 'long' }" @update:model-value="changeYears"><NumberFieldContent><NumberFieldDecrement aria-label="Decrease time horizon" /><NumberFieldInput aria-label="Time horizon in years" /><NumberFieldIncrement aria-label="Increase time horizon" /></NumberFieldContent></NumberField></div>
+              <div class="horizon"><NumberField id="years" :model-value="draft.years" :min="1" :max="40" :step="1" :format-options="{ style: 'unit', unit: 'year', unitDisplay: 'long' }" @update:model-value="changeYears"><NumberFieldContent><NumberFieldDecrement aria-label="Decrease time horizon" /><NumberFieldInput aria-label="Time horizon in years" readonly /><NumberFieldIncrement aria-label="Increase time horizon" /></NumberFieldContent></NumberField></div>
               <Tabs v-if="forecastMode === 'deterministic'" v-model="chartView" class="icon-toggle"><TabsList aria-label="Forecast view"><TabsTrigger value="chart" aria-label="Chart" title="Chart"><ChartNoAxesCombined :size="16" /></TabsTrigger><TabsTrigger value="table" aria-label="Annual table" title="Annual table"><Table2 :size="16" /></TabsTrigger></TabsList></Tabs>
             </div>
             <div class="chart-summary">
