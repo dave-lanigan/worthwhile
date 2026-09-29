@@ -100,10 +100,10 @@ function activate(id?: string) {
     </Card>
     <Dialog v-model:open="dialogOpen">
       <DialogContent class="entry-dialog">
-        <DialogHeader><DialogTitle>New scenario</DialogTitle><DialogDescription>Start a blank what-if plan you can compare against your personal forecast.</DialogDescription></DialogHeader>
+        <DialogHeader class="entry-dialog-header"><DialogTitle>New scenario</DialogTitle><DialogDescription>Start a blank what-if plan you can compare against your personal forecast.</DialogDescription></DialogHeader>
         <form class="entry-form" @submit.prevent="create">
-          <div class="field"><Label for="new-profile-name">Name</Label><Input id="new-profile-name" v-model="name" maxlength="60" required autofocus placeholder="e.g. Early retirement at 55" /></div>
-          <div class="field"><Label for="new-profile-description">Description</Label><textarea id="new-profile-description" v-model="description" maxlength="180" placeholder="Optional" /></div>
+          <div class="field entry-name-field"><Label for="new-profile-name">Name</Label><Input id="new-profile-name" v-model="name" maxlength="60" required autofocus placeholder="e.g. Early retirement at 55" /></div>
+          <div class="field"><Label for="new-profile-description">Description</Label><Input id="new-profile-description" v-model="description" maxlength="180" placeholder="Optional" /></div>
           <p v-if="error" class="form-error" role="alert">{{ error }}</p>
           <DialogFooter><Button type="button" variant="outline" @click="dialogOpen = false">Cancel</Button><Button type="submit" :disabled="creating"><LoaderCircle v-if="creating" class="spin" data-icon="inline-start" /><Plus v-else data-icon="inline-start" />Create scenario</Button></DialogFooter>
         </form>

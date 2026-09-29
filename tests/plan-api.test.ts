@@ -220,6 +220,7 @@ it('rejects foreign origins, nonlocal hosts, and non-JSON writes', () => {
   expect(localRequestError('127.0.0.1:3000', 'http://127.0.0.1:3000', 'PUT', 'application/json')).toBeNull()
   expect(localRequestError('localhost:3000', undefined, 'GET', undefined)).toBeNull()
   expect(localRequestError('attacker.test:3000', undefined, 'GET', undefined)).toBeTruthy()
+  expect(localRequestError('192.168.8.227:3000', 'http://192.168.8.227:3000', 'GET', undefined, false, true)).toBeNull()
   expect(localRequestError('localhost:3000', 'https://attacker.test', 'PUT', 'application/json')).toBeTruthy()
   expect(localRequestError('localhost:3000', undefined, 'PUT', 'text/plain')).toBeTruthy()
 })

@@ -231,10 +231,14 @@ main { max-width: 1256px; padding: 40px 28px 0; margin: auto; }
 .profile-monogram { display: grid; place-items: center; width: 52px; height: 52px; overflow: hidden; flex-shrink: 0; border: 1px solid #d4d4d8; border-radius: 16px; background: #f4f4f5; color: #52525b; }
 .profile-monogram img { width: 100%; height: 100%; object-fit: cover; }
 .profile-intro { margin-top: 4px; line-height: 1.6; }
+.profile-details { display: flex; flex-direction: column; gap: 22px; }
 .profile-section-heading { display: flex; align-items: flex-start; gap: 10px; padding-top: 4px; color: #52525b; }
 .profile-section-heading > svg { margin-top: 2px; flex-shrink: 0; }
 .profile-section-heading h2 { font-size: 14px; }
 .profile-section-heading p { margin-top: 2px; color: var(--color-muted-foreground); font-size: 12px; line-height: 1.5; }
+.profile-summary { color: #102831; font-size: 14px; line-height: 1.55; overflow-wrap: anywhere; }
+.profile-summary span + span { margin-left: 8px; }
+.profile-summary span[aria-hidden='true'] { color: #9dafba; }
 .profile-actions { display: flex; align-items: center; justify-content: flex-end; gap: 12px; padding-top: 4px; }
 .profile-saved { display: inline-flex; align-items: center; gap: 6px; color: #166534; font-size: 12px; }
 .address-lookup { position: relative; }
@@ -459,6 +463,35 @@ main { max-width: 1320px; padding-top: 48px; }
 .empty-ledger .empty-icon { display: none; }
 .page-footer { margin-top: 36px; border-top: 1px solid #b9c5bd; padding-top: 20px; color: #526673; }
 
+/* Entry dialogs extend the ledger's compact financial-statement language. */
+.entry-dialog { overflow: hidden; max-width: 500px; padding: 0; border: 1px solid #b9c5bd; border-radius: 0; background: #ffffff; color: #102831; box-shadow: 0 18px 42px rgb(16 40 49 / 0.16); }
+.entry-dialog-header { gap: 7px; padding: 26px 132px 20px 28px; border-bottom: 1px solid #b9c5bd; background: #f7f9f5; }
+.entry-dialog-actions { position: absolute; top: 20px; right: 22px; display: flex; gap: 8px; }
+.entry-dialog-actions [data-slot='button'] { width: 38px; height: 38px; min-height: 38px; border: 1px solid #d8e0e4; border-radius: 3px; background: #ffffff; color: #102831; box-shadow: 0 2px 6px rgb(16 40 49 / 0.14); }
+.entry-dialog-actions [data-slot='button']:hover { background: #f7f9f5; color: #102831; }
+.entry-dialog [data-slot='dialog-title'] { color: #102831; font-family: 'Manrope', sans-serif; font-size: 20px; letter-spacing: -0.025em; }
+.entry-dialog [data-slot='dialog-description'] { max-width: 44ch; color: #526673; font-size: 12px; line-height: 1.55; }
+.entry-form { gap: 22px; padding: 24px 28px 20px; }
+.entry-form .field { gap: 7px; }
+.entry-form label { color: #526673; font-size: 10px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; }
+.entry-form input, .entry-form textarea, .entry-form [data-slot='select-trigger'] { border-color: #b9c5bd; border-radius: 3px; background: #ffffff; color: #102831; box-shadow: none; transition-property: border-color, box-shadow, background-color; }
+.entry-form textarea { min-height: 92px; padding: 9px 11px; font-size: 14px; line-height: 1.5; resize: vertical; }
+.entry-form input:hover, .entry-form textarea:hover, .entry-form [data-slot='select-trigger']:hover { border-color: #7f9890; }
+.entry-form input:focus-visible, .entry-form textarea:focus-visible, .entry-form [data-slot='select-trigger']:focus-visible { outline: none; border-color: #1677b8; box-shadow: 0 0 0 2px rgb(22 119 184 / 0.16); }
+.entry-name-field { padding-bottom: 20px; border-bottom: 1px solid #d8e0e4; }
+.entry-form [data-slot='tabs-list'] { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); height: auto; padding: 0; border-bottom: 1px solid #b9c5bd; border-radius: 0; background: transparent; }
+.entry-form [data-slot='tabs-trigger'] { justify-content: flex-start; padding: 0 0 10px; border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: transparent; color: #526673; box-shadow: none; font-size: 11px; }
+.entry-form [data-slot='tabs-trigger'][data-state='active'] { border-bottom-color: #227a68; background: transparent; color: #102831; box-shadow: none; }
+.entry-form [data-slot='tabs-content'] { margin-top: 16px; }
+.entry-form .muted { color: #526673; font-size: 11px; line-height: 1.45; }
+.entry-form [data-slot='dialog-footer'] { gap: 10px; margin-top: 2px; padding-top: 16px; border-top: 1px solid #b9c5bd; }
+.entry-form [data-slot='dialog-footer'] [data-slot='button'] { border-radius: 3px; }
+.entry-form [data-slot='dialog-footer'] [data-slot='button'][data-variant='outline'] { border-color: #b9c5bd; background: transparent; color: #526673; }
+.entry-form [data-slot='dialog-footer'] [data-slot='button'][data-variant='outline']:hover { border-color: #7f9890; color: #102831; }
+.entry-form [data-slot='dialog-footer'] [data-slot='button']:not([data-variant='outline']) { background: #102831; color: #ffffff; }
+.entry-form [data-slot='dialog-footer'] [data-slot='button']:not([data-variant='outline']):hover { background: #203f4b; }
+.entry-form .form-error { border: 1px solid #e2b8aa; border-radius: 3px; background: #fff3ef; color: #9d3e28; }
+
 .profile-page { max-width: 900px; background: #ffffff; }
 .profile-header { margin-bottom: 40px; }
 .profile-card, .profiles-card { border-color: #d8e0e4; border-radius: 0; background: #ffffff; box-shadow: none; }
@@ -521,4 +554,10 @@ main { max-width: 1320px; padding-top: 48px; }
   .ledger-table tbody tr { border-bottom: 1px solid #c8d0ca; }
   .ledger-table tbody tr:hover { background: transparent; }
   .empty-ledger { min-height: 0; flex-wrap: wrap; }
+  .entry-dialog { width: calc(100% - 24px); max-height: calc(100dvh - 24px); overflow-y: auto; }
+  .entry-dialog-header { padding: 22px 112px 18px 20px; }
+  .entry-dialog-actions { top: 16px; right: 16px; }
+  .entry-dialog-actions [data-slot='button'] { width: 40px; height: 40px; min-height: 40px; }
+  .entry-form { padding: 20px; gap: 18px; }
+  .entry-form [data-slot='dialog-footer'] { position: sticky; bottom: -20px; margin-bottom: -20px; padding: 14px 0 20px; background: #ffffff; }
 }

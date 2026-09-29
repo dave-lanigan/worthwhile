@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowDownLeft, ArrowUpRight, BookmarkPlus, ChartNoAxesCombined, ChevronRight, CircleAlert, Dices, EllipsisVertical, Landmark, Layers, LoaderCircle, Pencil, Plus, RefreshCw, Table2, Trash2, TrendingUp, UserRound, Wallet } from 'lucide-vue-next'
+import { ArrowDownLeft, ArrowUpRight, BookmarkPlus, ChartNoAxesCombined, ChevronRight, CircleAlert, Dices, EllipsisVertical, Landmark, Layers, LoaderCircle, Pencil, Plus, RefreshCw, Trash2, TrendingUp, UserRound, Wallet } from 'lucide-vue-next'
 import { DropdownMenuRoot, DropdownMenuTrigger, DropdownMenuPortal, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem } from 'reka-ui'
 import { emptyPlan, investmentAllocation, type CashFlow, type Category, type Investment, type Liability } from '#shared/schemas/financial-plan'
 import { annualAmount, monthlyAmount, simulateNetWorth } from '#shared/utils/projection'
@@ -39,7 +39,6 @@ const profileDescription = ref('')
 const profileError = ref('')
 const creatingProfile = ref(false)
 const selectedMonth = ref(draft.value.years * 12)
-const chartView = ref('chart')
 const forecastMode = ref<'deterministic' | 'monte-carlo'>('deterministic')
 const portfolioPreset = ref('conservative')
 const portfolioMean = ref(5)
@@ -67,7 +66,6 @@ const selectedPeriod = computed(() => {
   const months = month % 12
   return [years ? `${years} ${years === 1 ? 'year' : 'years'}` : '', months ? `${months} ${months === 1 ? 'month' : 'months'}` : ''].filter(Boolean).join(' ')
 })
-const yearly = computed(() => forecast.value.result?.points.filter(point => point.month % 12 === 0) ?? [])
 const monthlyPayments = computed(() => forecast.value.result?.points[1]?.payments ?? 0)
 const monthlySurplus = computed(() => (forecast.value.result?.income ?? 0) - (forecast.value.result?.expenses ?? 0) - monthlyPayments.value)
 const totalInvested = computed(() => draft.value.investments.reduce((total, item) => total + item.balance, 0))
@@ -255,15 +253,13 @@ if (!guest) {
                 </div>
               </template>
               <div class="horizon"><NumberField id="years" :model-value="draft.years" :min="1" :max="40" :step="1" :format-options="{ style: 'unit', unit: 'year', unitDisplay: 'long' }" @update:model-value="changeYears"><NumberFieldContent><NumberFieldDecrement aria-label="Decrease time horizon" /><NumberFieldInput aria-label="Time horizon in years" /><NumberFieldIncrement aria-label="Increase time horizon" /></NumberFieldContent></NumberField></div>
-              <Tabs v-if="forecastMode === 'deterministic'" v-model="chartView" class="icon-toggle"><TabsList aria-label="Forecast view"><TabsTrigger value="chart" aria-label="Chart" title="Chart"><ChartNoAxesCombined :size="16" /></TabsTrigger><TabsTrigger value="table" aria-label="Annual table" title="Annual table"><Table2 :size="16" /></TabsTrigger></TabsList></Tabs>
             </div>
             <div class="chart-summary">
               <p v-if="forecastMode === 'monte-carlo'" class="simulation-outcome"><strong>{{ simulationProbability }}% chance</strong> of {{ simulationTarget }} by {{ monthLabel(draft.years * 12, start) }}</p>
               <div v-if="forecastMode === 'deterministic'" class="legend" aria-label="Chart legend"><span><i class="legend-dot net-worth" />Net worth</span><span><i class="legend-dot assets" />Assets</span><span><i class="legend-dot debt" />Liabilities</span></div>
               <div v-else class="legend" aria-label="Monte Carlo chart legend"><span><i class="legend-dot net-worth" />Median</span><span><i class="legend-band inner" />P25–P75</span><span><i class="legend-band outer" />P10–P90</span><span><i class="legend-line" />Deterministic</span></div>
             </div>
-            <div v-if="forecast.result && (forecastMode === 'monte-carlo' || chartView === 'chart')" class="chart-shell"><ClientOnly><NetWorthChart :points="forecast.result.points" :start="start" :simulation="simulation?.points" /><template #fallback><div class="chart-placeholder"><LoaderCircle class="spin" :size="20" /><span>Loading forecast</span></div></template></ClientOnly></div>
-            <div v-else-if="chartView === 'table' && forecast.result" class="annual-table"><Table><TableCaption class="sr-only">Annual net worth projection in US dollars</TableCaption><TableHeader><TableRow><TableHead>Date</TableHead><TableHead class="text-right">Cash</TableHead><TableHead class="text-right">Investments</TableHead><TableHead class="text-right">Liabilities</TableHead><TableHead class="text-right">Net worth</TableHead></TableRow></TableHeader><TableBody><TableRow v-for="point in yearly" :key="point.month"><TableCell>{{ monthLabel(point.month, start) }}</TableCell><TableCell class="text-right">{{ money(point.cash) }}</TableCell><TableCell class="text-right">{{ money(point.invested) }}</TableCell><TableCell class="text-right">{{ money(point.debt) }}</TableCell><TableCell class="text-right font-semibold">{{ money(point.netWorth) }}</TableCell></TableRow></TableBody></Table></div>
+            <div v-if="forecast.result" class="chart-shell"><ClientOnly><NetWorthChart :points="forecast.result.points" :start="start" :simulation="simulation?.points" /><template #fallback><div class="chart-placeholder"><LoaderCircle class="spin" :size="20" /><span>Loading forecast</span></div></template></ClientOnly></div>
             <div v-else class="chart-placeholder">Forecast unavailable until the values are valid.</div>
             <div v-if="selected" class="month-breakdown">
               <div><span>Cash</span><strong>{{ money(selected.cash) }}</strong></div><div><span>Investments</span><strong>{{ money(selected.invested) }}</strong></div><div><span>Liabilities</span><strong>{{ money(selected.debt) }}</strong></div><div class="breakdown-worth"><span>Net worth</span><strong>{{ money(selected.netWorth) }}</strong></div>
@@ -303,13 +299,13 @@ if (!guest) {
       </main>
       <FinancialEntryDialog v-model:open="editorOpen" :category="activeCategory" :entry="editing" :investments="draft.investments" @save="storeEntry" />
       <Dialog v-model:open="profileDialogOpen">
-        <DialogContent class="profile-dialog">
-          <DialogHeader><DialogTitle>{{ profileDialogMode === 'new' ? 'New profile' : 'Save this forecast as a profile' }}</DialogTitle><DialogDescription>{{ profileDialogMode === 'new' ? 'Start with an empty plan. Your current profile stays saved.' : 'Create a separate version of the numbers you are viewing now.' }}</DialogDescription></DialogHeader>
-          <form class="profile-form" @submit.prevent="addProfile">
-            <div class="field"><Label for="profile-name">Profile name</Label><Input id="profile-name" v-model="profileName" :aria-invalid="!!profileError" maxlength="60" required autofocus placeholder="e.g. Early retirement at 55" /><span class="field-hint">Required · {{ profileName.length }}/60</span></div>
-            <div class="field"><Label for="profile-description">Description</Label><textarea id="profile-description" v-model="profileDescription" maxlength="180" /><span class="field-hint">Optional · {{ profileDescription.length }}/180</span></div>
+        <DialogContent class="entry-dialog">
+          <DialogHeader class="entry-dialog-header"><DialogTitle>{{ profileDialogMode === 'new' ? 'New profile' : 'Save this forecast as a profile' }}</DialogTitle><DialogDescription>{{ profileDialogMode === 'new' ? 'Start with an empty plan. Your current profile stays saved.' : 'Create a separate version of the numbers you are viewing now.' }}</DialogDescription></DialogHeader>
+          <form class="entry-form" @submit.prevent="addProfile">
+            <div class="field entry-name-field"><Label for="profile-name">Profile name</Label><Input id="profile-name" v-model="profileName" :aria-invalid="!!profileError" maxlength="60" required autofocus placeholder="e.g. Early retirement at 55" /><span class="field-hint">Required · {{ profileName.length }}/60</span></div>
+            <div class="field"><Label for="profile-description">Description</Label><Input id="profile-description" v-model="profileDescription" maxlength="180" placeholder="Optional" /><span class="field-hint">Optional · {{ profileDescription.length }}/180</span></div>
             <p v-if="profileError" class="form-error" role="alert">{{ profileError }}</p>
-            <DialogFooter><Button type="button" variant="ghost" :disabled="creatingProfile" @click="profileDialogOpen = false">Cancel</Button><Button type="submit" :disabled="creatingProfile"><LoaderCircle v-if="creatingProfile" class="spin" data-icon="inline-start" /><Plus v-else-if="profileDialogMode === 'new'" data-icon="inline-start" /><BookmarkPlus v-else data-icon="inline-start" />{{ profileDialogMode === 'new' ? 'Create profile' : 'Save profile' }}</Button></DialogFooter>
+            <DialogFooter><Button type="button" variant="outline" :disabled="creatingProfile" @click="profileDialogOpen = false">Cancel</Button><Button type="submit" :disabled="creatingProfile"><LoaderCircle v-if="creatingProfile" class="spin" data-icon="inline-start" /><Plus v-else-if="profileDialogMode === 'new'" data-icon="inline-start" /><BookmarkPlus v-else data-icon="inline-start" />{{ profileDialogMode === 'new' ? 'Create profile' : 'Save profile' }}</Button></DialogFooter>
           </form>
         </DialogContent>
       </Dialog>

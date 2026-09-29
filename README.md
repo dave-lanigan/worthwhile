@@ -22,7 +22,7 @@ npm run build
 npm start
 ```
 
-Both scripts bind to `127.0.0.1`. Clerk authenticates visitors, and each signed-in account can read and save only its own plan. Local runs reject nonlocal hosts; Vercel deployments accept hosted HTTPS same-origin requests.
+Both scripts bind to `127.0.0.1`. Clerk authenticates visitors, and each signed-in account can read and save only its own plan. Local runs reject nonlocal hosts by default; for testing on a trusted LAN, run `NUXT_ALLOW_LAN=1 npm exec -- nuxt dev --host 0.0.0.0`. Vercel deployments accept hosted HTTPS same-origin requests.
 
 ## Authentication
 

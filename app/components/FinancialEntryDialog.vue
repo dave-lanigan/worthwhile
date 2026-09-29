@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Check, Plus } from 'lucide-vue-next'
+import { Check, Plus, X } from 'lucide-vue-next'
 import { cashFlowSchema, investmentAllocation, investmentSchema, liabilitySchema, type CashFlow, type Category, type Investment, type Liability } from '#shared/schemas/financial-plan'
 
 const props = defineProps<{ category: Category; entry?: CashFlow | Investment | Liability; investments: Investment[] }>()
@@ -53,13 +53,17 @@ function submit() {
 
 <template>
   <Dialog v-model:open="open">
-    <DialogContent class="entry-dialog">
-      <DialogHeader>
+    <DialogContent class="entry-dialog" :show-close-button="false">
+      <DialogHeader class="entry-dialog-header">
         <DialogTitle>{{ entry ? 'Edit' : 'Add' }} {{ singular[category] }}</DialogTitle>
         <DialogDescription>{{ category === 'incomes' ? 'Take-home income, after taxes.' : category === 'investments' ? 'Current value and expected effective annual return.' : category === 'liabilities' ? 'Outstanding debt and its scheduled repayment.' : 'Recurring spending, excluding debt payments entered under liabilities.' }}</DialogDescription>
       </DialogHeader>
-      <form class="entry-form" @submit.prevent="submit">
-        <div class="field"><Label for="entry-name">Name</Label><Input id="entry-name" v-model="form.name" required maxlength="100" autocomplete="off" :placeholder="category === 'investments' ? 'e.g. Index fund' : category === 'incomes' ? 'e.g. Salary' : category === 'expenses' ? 'e.g. Housing' : 'e.g. Student loan'" /></div>
+      <div class="entry-dialog-actions">
+        <Button type="submit" form="financial-entry-form" variant="outline" size="icon" aria-label="Save changes"><Check :size="19" /></Button>
+        <Button type="button" variant="outline" size="icon" aria-label="Close dialog" @click="open = false"><X :size="19" /></Button>
+      </div>
+      <form id="financial-entry-form" class="entry-form" @submit.prevent="submit">
+        <div class="field entry-name-field"><Label for="entry-name">Name</Label><Input id="entry-name" v-model="form.name" required maxlength="100" autocomplete="off" :placeholder="category === 'investments' ? 'e.g. Index fund' : category === 'incomes' ? 'e.g. Salary' : category === 'expenses' ? 'e.g. Housing' : 'e.g. Student loan'" /></div>
         <template v-if="isFlow">
           <div class="form-columns">
             <div class="field"><Label for="entry-amount">Amount (USD)</Label><Input id="entry-amount" v-model="form.amount" type="number" min="0" max="1000000000000" step="0.01" required inputmode="decimal" /></div>
@@ -82,7 +86,6 @@ function submit() {
           </div>
         </template>
         <p v-if="error" class="form-error" role="alert">{{ error }}</p>
-        <DialogFooter><Button type="button" variant="outline" @click="open = false">Cancel</Button><Button type="submit"><Check v-if="entry" :size="16" /><Plus v-else :size="16" />{{ entry ? 'Apply changes' : `Add ${singular[category]}` }}</Button></DialogFooter>
       </form>
     </DialogContent>
   </Dialog>

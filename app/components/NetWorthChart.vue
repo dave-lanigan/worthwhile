@@ -29,7 +29,7 @@ function simulationTooltipTemplate(point: MonteCarloPoint, position: number | Da
 </script>
 
 <template>
-  <ChartContainer :config="config" class="forecast-chart" cursor role="img" :aria-label="simulation ? 'Monte Carlo net worth fan chart with 10th through 90th percentile ranges and a deterministic reference path.' : 'Monthly projection of net worth, assets, and liabilities. Values are also available in the annual table.'">
+    <ChartContainer :config="config" class="forecast-chart" cursor role="img" :aria-label="simulation ? 'Monte Carlo net worth fan chart with 10th through 90th percentile ranges and a deterministic reference path.' : 'Monthly projection of net worth, assets, and liabilities.'">
     <VisXYContainer :key="simulation ? 'simulation' : 'deterministic'" :data="simulation ?? points" :yDomain="domain" :svg-defs="svgDefs" :margin="{ top: 16, right: 12, bottom: 0, left: 0 }" :duration="0">
       <template v-if="simulation">
         <VisArea :x="(point: MonteCarloPoint) => point.month" :baseline="(point: MonteCarloPoint) => point.p10" :y="(point: MonteCarloPoint) => point.p90 - point.p10" :color="colors[0]" :opacity="0.16" />
