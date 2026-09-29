@@ -9,11 +9,17 @@ export const WEALTH_BENCHMARK = {
 export type WealthAgeBand = keyof typeof AGE_NET_WORTH_PERCENTILE_THRESHOLDS
 
 export const WEALTH_AGE_BANDS: Record<WealthAgeBand, { label: string }> = {
-  under35: { label: 'Under 35' },
-  ages35to44: { label: 'Ages 35–44' },
-  ages45to54: { label: 'Ages 45–54' },
-  ages55to64: { label: 'Ages 55–64' },
-  ages65to74: { label: 'Ages 65–74' },
+  under25: { label: 'Under 25' },
+  ages25to29: { label: 'Ages 25–29' },
+  ages30to34: { label: 'Ages 30–34' },
+  ages35to39: { label: 'Ages 35–39' },
+  ages40to44: { label: 'Ages 40–44' },
+  ages45to49: { label: 'Ages 45–49' },
+  ages50to54: { label: 'Ages 50–54' },
+  ages55to59: { label: 'Ages 55–59' },
+  ages60to64: { label: 'Ages 60–64' },
+  ages65to69: { label: 'Ages 65–69' },
+  ages70to74: { label: 'Ages 70–74' },
   ages75plus: { label: 'Ages 75+' },
 }
 
@@ -51,11 +57,17 @@ export function netWorthPercentile(cents: number): number | null {
 
 export function wealthAgeBand(age: number): WealthAgeBand | null {
   if (!Number.isInteger(age) || age < 0 || age > 120) return null
-  if (age < 35) return 'under35'
-  if (age < 45) return 'ages35to44'
-  if (age < 55) return 'ages45to54'
-  if (age < 65) return 'ages55to64'
-  if (age < 75) return 'ages65to74'
+  if (age < 25) return 'under25'
+  if (age < 30) return 'ages25to29'
+  if (age < 35) return 'ages30to34'
+  if (age < 40) return 'ages35to39'
+  if (age < 45) return 'ages40to44'
+  if (age < 50) return 'ages45to49'
+  if (age < 55) return 'ages50to54'
+  if (age < 60) return 'ages55to59'
+  if (age < 65) return 'ages60to64'
+  if (age < 70) return 'ages65to69'
+  if (age < 75) return 'ages70to74'
   return 'ages75plus'
 }
 
