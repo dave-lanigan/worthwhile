@@ -252,7 +252,7 @@ if (!guest) {
                   <Slider :model-value="[portfolioVolatility]" :min="0" :max="40" :step="0.5" aria-label="Annual volatility" @update:model-value="value => changePortfolioAssumption('volatility', value?.[0] ?? portfolioVolatility)" />
                 </div>
               </template>
-              <div class="horizon"><NumberField id="years" :model-value="draft.years" :min="1" :max="40" :step="1" :format-options="{ style: 'unit', unit: 'year', unitDisplay: 'long' }" @update:model-value="changeYears"><NumberFieldContent><NumberFieldDecrement aria-label="Decrease time horizon" /><NumberFieldInput aria-label="Time horizon in years" /><NumberFieldIncrement aria-label="Increase time horizon" /></NumberFieldContent></NumberField></div>
+              <div class="horizon"><NumberField id="years" :model-value="draft.years" :min="1" :max="40" :step="1" :format-options="{ style: 'unit', unit: 'year', unitDisplay: 'long' }" @update:model-value="changeYears"><NumberFieldContent><NumberFieldDecrement aria-label="Decrease time horizon" /><NumberFieldInput aria-label="Time horizon in years" readonly /><NumberFieldIncrement aria-label="Increase time horizon" /></NumberFieldContent></NumberField></div>
             </div>
             <div class="chart-summary">
               <p v-if="forecastMode === 'monte-carlo'" class="simulation-outcome"><strong>{{ simulationProbability }}% chance</strong> of {{ simulationTarget }} by {{ monthLabel(draft.years * 12, start) }}</p>
