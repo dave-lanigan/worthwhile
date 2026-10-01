@@ -415,7 +415,7 @@ main { max-width: 1320px; padding-top: 48px; }
 .age-percentile-unavailable { display: block; white-space: normal; }
 .age-percentile-unavailable a { color: #102831; text-decoration: underline; text-underline-offset: 3px; }
 
-.forecast-section { margin-top: 48px; padding: 30px 32px 26px; border: 1px solid #d8e0e4; border-radius: 0; background: #ffffff; color: #122936; box-shadow: none; }
+.forecast-section { margin-top: 48px; padding: 30px 32px 26px; border: 1px solid #d8e0e4; border-radius: var(--radius-lg); background: #ffffff; color: #122936; box-shadow: none; }
 .forecast-section [data-slot='card-header'], .forecast-section [data-slot='card-content'] { padding: 0; }
 .forecast-section .section-heading { margin-bottom: 28px; }
 .forecast-section h2 { color: #122936; font-size: 19px; }
@@ -579,4 +579,164 @@ main { max-width: 1320px; padding-top: 48px; }
   .entry-dialog-actions [data-slot='button'] { width: 40px; height: 40px; min-height: 40px; }
   .entry-form { padding: 20px; gap: 18px; }
   .entry-form [data-slot='dialog-footer'] { position: sticky; bottom: -20px; margin-bottom: -20px; padding: 14px 0 20px; background: #ffffff; }
+}
+
+/* Compact, containerized financial ledger. */
+.ledger-cash-card,
+.ledger-summary-card,
+.ledger-entry-card {
+  border-color: var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-card);
+  box-shadow: none;
+}
+.ledger-cash-card,
+.ledger-summary-card {
+  gap: 0;
+  padding: 0;
+}
+.ledger-cash-card [data-slot='card-content'],
+.ledger-summary-card [data-slot='card-content'],
+.ledger-entry-card [data-slot='card-content'] {
+  padding: 12px;
+}
+.ledger-cash-card [data-slot='card-content'],
+.ledger-summary-card [data-slot='card-content'] {
+  padding: 16px;
+}
+.ledger-cash-card .cash-input input {
+  width: 140px;
+  height: 30px;
+  min-height: 30px;
+  border-color: var(--color-border);
+  background: var(--color-card);
+  font-size: 14px;
+}
+.financial-tabs {
+  margin-top: 0;
+}
+.category-rail {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  width: 100%;
+  height: auto;
+  gap: 6px;
+  padding: 8px 0;
+  overflow: visible;
+  border: 0;
+  background: transparent;
+}
+.category-rail [data-slot='tabs-trigger'].category-rail-item,
+.category-rail [data-slot='tabs-trigger'].category-rail-item:first-child {
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  justify-content: center;
+  gap: 5px;
+  padding: 6px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-card);
+  color: var(--color-muted-foreground);
+  box-shadow: none;
+  font-size: 12px;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+.category-rail [data-slot='tabs-trigger'].category-rail-item:hover {
+  background: color-mix(in srgb, var(--color-muted) 50%, transparent);
+  color: var(--foreground);
+}
+.category-rail [data-slot='tabs-trigger'].category-rail-item[data-state='active'] {
+  border-color: color-mix(in srgb, var(--color-primary) 20%, transparent);
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  color: var(--color-primary);
+}
+.category-rail .entry-count {
+  display: flex;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--color-muted);
+  color: inherit;
+  font-size: 10px;
+  line-height: 1;
+}
+.ledger-summary-card {
+  margin-top: 0;
+}
+.ledger-toolbar {
+  padding: 12px 0 8px;
+}
+.ledger-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ledger-entry-card {
+  gap: 0;
+  padding: 0;
+}
+.ledger-entry-card:hover {
+  border-color: color-mix(in srgb, var(--color-muted-foreground) 45%, transparent);
+}
+.ledger-entry-card .row-actions {
+  width: auto;
+}
+.ledger-entry-card .row-actions button {
+  width: 32px;
+  height: 32px;
+}
+.ledger-entry-amount {
+  min-width: 0;
+}
+
+@media (max-width: 640px) {
+  .financial-section {
+    padding-inline: 0;
+  }
+  .ledger-cash-card [data-slot='card-content'],
+  .ledger-summary-card [data-slot='card-content'] {
+    padding: 14px;
+  }
+  .ledger-entry-card [data-slot='card-content'] {
+    gap: 8px;
+  }
+  .ledger-entry-card .row-actions {
+    flex-direction: column;
+    gap: 0;
+  }
+  .ledger-entry-card .row-actions button {
+    min-width: 32px;
+    min-height: 32px;
+  }
+  .ledger-entry-card .row-actions button + button {
+    margin-left: 0;
+  }
+  .ledger-entry-amount {
+    max-width: 92px;
+  }
+  .ledger-entry-amount strong {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    text-align: right;
+  }
+  .category-rail {
+    gap: 4px;
+  }
+  .category-rail [data-slot='tabs-trigger'].category-rail-item,
+  .category-rail [data-slot='tabs-trigger'].category-rail-item:first-child {
+    gap: 3px;
+    padding: 6px 4px;
+    font-size: 11px;
+  }
+  .category-rail .entry-count {
+    width: 14px;
+    height: 14px;
+    flex-basis: 14px;
+    font-size: 9px;
+  }
 }
