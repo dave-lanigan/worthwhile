@@ -102,7 +102,7 @@ function submit() {
       <DrawerFooter class="income-drawer-footer">
         <Button type="submit" form="income-entry-form" class="w-full">Save Changes</Button>
         <DrawerClose as-child>
-          <Button type="button" variant="ghost" class="w-full">Cancel</Button>
+          <Button type="button" variant="outline" class="w-full">Cancel</Button>
         </DrawerClose>
       </DrawerFooter>
     </DrawerContent>
