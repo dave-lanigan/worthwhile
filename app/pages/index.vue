@@ -422,8 +422,8 @@ if (!guest) {
                   <span class="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-lg bg-muted/50"><Landmark :size="18" /></span>
                   <div class="flex min-w-0 flex-col flex-grow justify-center"><strong class="text-sm">Estimated tax</strong><span class="text-xs text-muted-foreground">Estimate only · not in outflow; income is take-home</span></div>
                   <strong class="text-sm tabular-nums">{{ taxEstimate ? money(taxEstimate.total, true) : '—' }}</strong>
-                  <Button variant="outline" size="sm" class="tax-details-button" @click="taxDialogOpen = true">Tax details</Button>
                 </CardContent>
+                <Button type="button" variant="ghost" class="tax-details-button" @click="taxDialogOpen = true">Tax details<ChevronRight :size="16" aria-hidden="true" /></Button>
               </Card>
             </Tabs>
           </section>
