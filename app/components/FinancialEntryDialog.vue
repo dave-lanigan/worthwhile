@@ -9,9 +9,15 @@ const emit = defineEmits<{ save: [entry: CashFlow | Investment | Liability] }>()
 const singular: Record<Category, string> = { incomes: 'income', investments: 'investment', expenses: 'expense', liabilities: 'liability' }
 const form = reactive({ name: '', amount: '0', frequency: 'monthly', balance: '0', annualRoi: '5', allocation: '0', allocationMode: 'percentage', monthlyContribution: '0', apr: '0', payment: '0', type: 'debt', termYears: '5' })
 const error = ref('')
+const viewport = ref<Record<string, string>>({})
 const isFlow = computed(() => props.category === 'incomes' || props.category === 'expenses')
 const availableAllocation = computed(() => Math.max(0, 100 - props.investments.filter(item => item.id !== props.entry?.id).reduce((total, item) => total + investmentAllocation(item, props.investments), 0)))
 const loanPayment = computed(() => monthlyLoanPayment(Math.round(Number(form.balance) * 100), Number(form.apr), Number(form.termYears) * 12))
+const frequencies = [
+  { value: 'monthly', label: 'Monthly' },
+  { value: 'biweekly', label: 'Bi-weekly' },
+  { value: 'annual', label: 'Annually' },
+]
 
 watch(open, (value) => {
   if (!value) return
@@ -31,6 +37,32 @@ watch(open, (value) => {
     type: entry && 'type' in entry ? entry.type ?? 'debt' : 'debt',
     termYears: entry && 'termMonths' in entry && entry.termMonths ? String(entry.termMonths / 12) : '5',
   })
+  updateViewport()
+})
+
+function selectFrequency(value: unknown) {
+  if (typeof value === 'string' && frequencies.some(option => option.value === value)) form.frequency = value
+}
+
+function updateViewport() {
+  if (import.meta.server) return
+  const visual = window.visualViewport
+  const height = visual?.height ?? window.innerHeight
+  const offset = visual ? Math.max(0, window.innerHeight - visual.height - visual.offsetTop) : 0
+  viewport.value = { '--income-drawer-viewport': `${height}px`, '--income-drawer-offset': `${offset}px` }
+}
+
+onMounted(() => {
+  updateViewport()
+  window.visualViewport?.addEventListener('resize', updateViewport)
+  window.visualViewport?.addEventListener('scroll', updateViewport)
+  window.addEventListener('resize', updateViewport)
+})
+
+onBeforeUnmount(() => {
+  window.visualViewport?.removeEventListener('resize', updateViewport)
+  window.visualViewport?.removeEventListener('scroll', updateViewport)
+  window.removeEventListener('resize', updateViewport)
 })
 
 function submit() {
@@ -56,18 +88,24 @@ function submit() {
 </script>
 
 <template>
-  <Dialog v-model:open="open">
-    <DialogContent class="entry-dialog">
-      <DialogHeader class="entry-dialog-header">
-        <DialogTitle>{{ entry ? 'Edit' : 'Add' }} {{ singular[category] }}</DialogTitle>
-        <DialogDescription>{{ category === 'incomes' ? 'Take-home income, after taxes.' : category === 'investments' ? 'Current value and expected effective annual return.' : category === 'liabilities' ? 'Outstanding debt and its scheduled repayment.' : 'Recurring spending, excluding debt payments entered under liabilities.' }}</DialogDescription>
-      </DialogHeader>
-      <form id="financial-entry-form" class="entry-form" @submit.prevent="submit">
-        <div class="field entry-name-field"><Label for="entry-name">Name</Label><Input id="entry-name" v-model="form.name" required maxlength="100" autocomplete="off" :placeholder="category === 'investments' ? 'e.g. Index fund' : category === 'incomes' ? 'e.g. Salary' : category === 'expenses' ? 'e.g. Housing' : 'e.g. Student loan'" /></div>
+  <Drawer v-model:open="open" :should-scale-background="false">
+    <DrawerContent class="income-drawer financial-entry-drawer" :style="viewport" aria-describedby="financial-entry-description">
+      <DrawerHeader class="income-drawer-header">
+        <DrawerTitle>{{ entry ? 'Edit' : 'Add' }} {{ singular[category] }}</DrawerTitle>
+        <DrawerDescription id="financial-entry-description">{{ category === 'incomes' ? 'Take-home income, after taxes.' : category === 'investments' ? 'Current value and expected effective annual return.' : category === 'liabilities' ? 'Outstanding debt and its scheduled repayment.' : 'Recurring spending, excluding debt payments entered under liabilities.' }}</DrawerDescription>
+      </DrawerHeader>
+      <form id="financial-entry-form" class="entry-form income-drawer-body" @submit.prevent="submit">
+        <div class="field"><Label for="entry-name">Name</Label><Input id="entry-name" v-model="form.name" required maxlength="100" autocomplete="off" :placeholder="category === 'investments' ? 'e.g. Index fund' : category === 'incomes' ? 'e.g. Salary' : category === 'expenses' ? 'e.g. Housing' : 'e.g. Student loan'" /></div>
         <template v-if="isFlow">
-          <div class="form-columns">
-            <div class="field"><Label for="entry-amount">Amount (USD)</Label><Input id="entry-amount" v-model="form.amount" type="number" min="0" max="1000000000000" step="0.01" required inputmode="decimal" /></div>
-            <div class="field"><Label for="entry-frequency">Frequency</Label><Select v-model="form.frequency"><SelectTrigger id="entry-frequency" class="w-full"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="monthly">Monthly</SelectItem><SelectItem value="annual">Annual</SelectItem></SelectContent></Select></div>
+          <div class="field">
+            <Label for="entry-amount">Amount (USD)</Label>
+            <div class="income-amount"><span class="income-amount-prefix" aria-hidden="true">$</span><Input id="entry-amount" v-model="form.amount" class="pl-7" type="number" min="0" max="1000000000000" step="0.01" required inputmode="decimal" placeholder="0.00" /></div>
+          </div>
+          <div class="field">
+            <Label id="entry-frequency-label" as="span">Frequency</Label>
+            <ToggleGroup type="single" variant="outline" class="income-frequency" :model-value="form.frequency" aria-labelledby="entry-frequency-label" @update:model-value="selectFrequency">
+              <ToggleGroupItem v-for="option in frequencies" :key="option.value" :value="option.value">{{ option.label }}</ToggleGroupItem>
+            </ToggleGroup>
           </div>
         </template>
         <template v-else>
@@ -91,8 +129,11 @@ function submit() {
           </template>
         </template>
         <p v-if="error" class="form-error" role="alert">{{ error }}</p>
-        <DialogFooter><Button type="button" variant="outline" @click="open = false">Cancel</Button><Button type="submit">{{ entry ? 'Apply changes' : `Add ${singular[category]}` }}</Button></DialogFooter>
       </form>
-    </DialogContent>
-  </Dialog>
+      <DrawerFooter class="income-drawer-footer">
+        <Button type="submit" form="financial-entry-form" class="w-full">{{ entry ? 'Apply changes' : `Add ${singular[category]}` }}</Button>
+        <DrawerClose as-child><Button type="button" variant="outline" class="w-full">Cancel</Button></DrawerClose>
+      </DrawerFooter>
+    </DrawerContent>
+  </Drawer>
 </template>

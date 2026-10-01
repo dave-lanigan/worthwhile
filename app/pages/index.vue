@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { ArrowDownLeft, ArrowUpRight, ChartNoAxesCombined, ChevronRight, CircleAlert, Copy, Dices, EllipsisVertical, Landmark, Layers, LoaderCircle, Pencil, Plus, RefreshCw, Trash2, TrendingUp, UserRound, Wallet } from 'lucide-vue-next'
+import { ArrowDownLeft, ArrowUpRight, Award, Briefcase, ChartNoAxesCombined, Check, ChevronRight, CircleAlert, Code, Copy, Dices, EllipsisVertical, Gift, Landmark, Layers, LoaderCircle, Pencil, Plus, RefreshCw, Trash2, TrendingUp, UserRound, Wallet } from 'lucide-vue-next'
 import { DropdownMenuRoot, DropdownMenuTrigger, DropdownMenuPortal, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem } from 'reka-ui'
 import { emptyPlan, investmentAllocation, type CashFlow, type Category, type Investment, type Liability } from '#shared/schemas/financial-plan'
-import { annualAmount, monthlyAmount, simulateNetWorth } from '#shared/utils/projection'
+import { annualAmount, simulateNetWorth } from '#shared/utils/projection'
 import { ageGroupNetWorthPercentile, netWorthPercentile, percentileLabel, WEALTH_AGE_BANDS } from '#shared/utils/wealth-percentile'
 import { money, monthLabel } from '@/lib/format'
 import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
 import { NumberField, NumberFieldContent, NumberFieldDecrement, NumberFieldIncrement, NumberFieldInput } from '@/components/ui/number-field'
 
 definePageMeta({ alias: '/guest' })
@@ -27,6 +28,7 @@ const { draft, dirty, saving, saveError, conflict, loadError, status, forecast, 
 const { profile: userProfile } = await useUserProfile(guest)
 const start = useState('forecast-start', () => new Date().toISOString().slice(0, 7))
 const activeCategory = ref<Category>('incomes')
+const cashEditing = ref(false)
 const editorOpen = ref(false)
 const taxDialogOpen = ref(false)
 const editing = ref<CashFlow | Investment | Liability>()
@@ -48,10 +50,16 @@ const portfolioVolatility = ref(10)
 const portfolioPresets = { conservative: { mean: 5, volatility: 10 }, aggressive: { mean: 8, volatility: 18 } }
 const categories = [
   { key: 'incomes' as const, label: 'Income', singular: 'income', icon: ArrowDownLeft },
-  { key: 'investments' as const, label: 'Investments', singular: 'investment', icon: TrendingUp },
+  { key: 'investments' as const, label: 'Invest', singular: 'investment', icon: TrendingUp },
   { key: 'expenses' as const, label: 'Expenses', singular: 'expense', icon: ArrowUpRight },
-  { key: 'liabilities' as const, label: 'Liabilities', singular: 'liability', icon: Landmark },
+  { key: 'liabilities' as const, label: 'Debt', singular: 'liability', icon: Landmark },
 ]
+const categoryPresets = {
+  salary: Briefcase,
+  bonus: Award,
+  consulting: Code,
+  'executive incentive': Gift,
+}
 const currentCategory = computed(() => categories.find(category => category.key === activeCategory.value)!)
 const entries = computed(() => draft.value[activeCategory.value])
 const first = computed(() => forecast.value.result?.points[0])
@@ -82,6 +90,32 @@ const monthlySurplus = computed(() => (forecast.value.result?.income ?? 0) - (fo
 const totalInvested = computed(() => draft.value.investments.reduce((total, item) => total + item.balance, 0))
 const totalDebt = computed(() => draft.value.liabilities.reduce((total, item) => total + item.balance, 0))
 const categoryTotals = computed(() => ({ incomes: forecast.value.result?.income ?? 0, investments: totalInvested.value, expenses: forecast.value.result?.expenses ?? 0, liabilities: totalDebt.value }))
+const summaryMetrics = computed(() => {
+  if (activeCategory.value === 'incomes') return {
+    leftLabel: 'Total monthly inflow',
+    leftValue: categoryTotals.value.incomes,
+    rightLabel: 'Annualized run-rate',
+    rightValue: yearlyIncome.value,
+  }
+  if (activeCategory.value === 'expenses') return {
+    leftLabel: 'Total monthly outflow',
+    leftValue: categoryTotals.value.expenses,
+    rightLabel: 'Annualized run-rate',
+    rightValue: draft.value.expenses.reduce((total, expense) => total + annualAmount(expense), 0),
+  }
+  if (activeCategory.value === 'investments') return {
+    leftLabel: 'Current invested',
+    leftValue: totalInvested.value,
+    rightLabel: 'Fixed monthly',
+    rightValue: fixedMonthly.value,
+  }
+  return {
+    leftLabel: 'Current debt',
+    leftValue: totalDebt.value,
+    rightLabel: 'Monthly payments',
+    rightValue: draft.value.liabilities.reduce((total, liability) => total + liability.payment, 0),
+  }
+})
 const growth = computed(() => (selected.value?.netWorth ?? 0) - (first.value?.netWorth ?? 0))
 const simulation = computed(() => forecastMode.value === 'monte-carlo' && forecast.value.result
   ? simulateNetWorth(draft.value, { annualReturn: portfolioMean.value, annualVolatility: portfolioVolatility.value })
@@ -95,6 +129,34 @@ function allocationLabel(investment: Investment) {
   return investment.monthlyContribution !== undefined
     ? `${money(investment.monthlyContribution, true)} / month`
     : `${investmentAllocation(investment, draft.value.investments).toLocaleString('en-US', { maximumFractionDigits: 2 })}%${fixedMonthly.value ? ' of remainder' : ''}`
+}
+
+function frequencyLabel(entry: CashFlow) {
+  return entry.frequency === 'annual' ? 'Annual' : entry.frequency === 'biweekly' ? 'Bi-weekly' : 'Monthly'
+}
+
+function entryIcon(entry: CashFlow | Investment | Liability) {
+  return categoryPresets[entry.name.trim().toLowerCase() as keyof typeof categoryPresets] ?? currentCategory.value.icon
+}
+
+function entryBadge(entry: CashFlow | Investment | Liability) {
+  if ('frequency' in entry) return frequencyLabel(entry)
+  return 'annualRoi' in entry ? 'Investment' : entry.type === 'loan' ? 'Loan' : 'Debt'
+}
+
+function entryDetail(entry: CashFlow | Investment | Liability) {
+  if ('frequency' in entry) return `${money(annualAmount(entry), true)} annualized`
+  if ('annualRoi' in entry) return `${entry.annualRoi}% annual ROI · ${allocationLabel(entry)}`
+  return `${entry.apr}% APR · ${money(entry.payment, true)} / month${entry.termMonths ? ` · ${entry.termMonths / 12}-year term` : ''}`
+}
+
+function entryAmount(entry: CashFlow | Investment | Liability) {
+  return money('amount' in entry ? entry.amount : entry.balance, true)
+}
+
+function entryAmountLabel(entry: CashFlow | Investment | Liability) {
+  if (!('amount' in entry)) return 'Balance in USD'
+  return activeCategory.value === 'incomes' ? 'Take-home in USD' : 'Amount in USD'
 }
 
 function preserveAllocations() {
@@ -282,30 +344,59 @@ if (!guest) {
           <div v-if="forecast.result?.firstShortfall" class="feedback warning" role="status"><CircleAlert :size="18" /><p><strong>Cash shortfall from {{ monthLabel(forecast.result.firstShortfall, start) }}.</strong> Negative cash is unfunded; investments are not sold automatically.</p></div>
           <div v-if="forecast.result?.growingDebts.length" class="feedback warning" role="status"><CircleAlert :size="18" /><p><strong>Payments do not cover interest:</strong> {{ draft.liabilities.filter(item => forecast.result?.growingDebts.includes(item.id)).map(item => item.name).join(', ') }}.</p></div>
 
-          <Card class="financial-section" role="region" aria-labelledby="financial-title">
-            <CardHeader class="section-heading"><div class="section-title"><h2 id="financial-title">Your financial picture</h2><CardDescription>The starting point for your forecast</CardDescription></div><div class="financial-actions"><div class="cash-setting"><Wallet :size="16" /><Label for="starting-cash">Starting cash</Label><span class="cash-input"><span>$</span><Input id="starting-cash" :model-value="draft.startingCash / 100" type="number" min="0" step="0.01" max="1000000000000" @update:model-value="value => draft.startingCash = Math.round(Number(value) * 100)" /></span></div></div></CardHeader>
-            <CardContent>
+          <section class="financial-section" role="region" aria-labelledby="financial-title">
+            <h2 id="financial-title" class="sr-only">Your financial picture</h2>
+            <Card class="ledger-cash-card bg-card">
+              <CardContent class="flex flex-row items-center justify-between p-4 gap-3">
+                <div class="flex min-w-0 flex-row items-center gap-3">
+                  <span class="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-lg bg-muted/50"><Wallet :size="18" /></span>
+                  <div class="flex min-w-0 flex-col justify-center">
+                    <span class="text-[10px] font-semibold uppercase text-muted-foreground leading-none">Starting liquid cash</span>
+                    <strong v-if="!cashEditing" class="mt-1 text-lg font-bold tabular-nums leading-tight">{{ money(draft.startingCash) }}</strong>
+                    <span v-else class="cash-input mt-1"><span>$</span><Input id="starting-cash" aria-label="Starting cash" :model-value="draft.startingCash / 100" type="number" min="0" step="0.01" max="1000000000000" @keyup.enter="cashEditing = false" @update:model-value="value => draft.startingCash = Math.round(Number(value) * 100)" /></span>
+                  </div>
+                </div>
+                <Button v-if="!cashEditing" variant="outline" size="sm" @click="cashEditing = true"><Pencil :size="14" />Edit</Button>
+                <Button v-else size="sm" @click="cashEditing = false"><Check :size="14" />Save</Button>
+              </CardContent>
+            </Card>
             <Tabs v-model="activeCategory" class="financial-tabs">
-              <TabsList class="category-rail" aria-label="Financial categories"><TabsTrigger v-for="category in categories" :key="category.key" :value="category.key" class="category-rail-item"><span class="category-rail-label"><component :is="category.icon" :size="16" /><span>{{ category.label }}</span><span class="entry-count">{{ draft[category.key].length }}</span></span><span class="category-rail-total">{{ money(categoryTotals[category.key]) }}</span></TabsTrigger></TabsList>
-              <div class="ledger-toolbar"><div><h3>{{ currentCategory.label }}</h3><span class="muted">{{ activeCategory === 'incomes' || activeCategory === 'expenses' ? 'Monthly total' : 'Current balance' }}: {{ money(categoryTotals[activeCategory]) }}</span><span v-if="activeCategory === 'incomes'" class="muted" data-testid="yearly-income">{{ money(yearlyIncome, true) }} / year</span><span v-if="activeCategory === 'investments'" class="muted">{{ fixedMonthly ? `${money(fixedMonthly, true)} / month fixed; ` : '' }}{{ cashAllocation.toFixed(2) }}% of {{ fixedMonthly ? 'remainder' : 'surplus' }} stays in cash</span></div><div class="ledger-toolbar-actions"><Button v-if="activeCategory === 'incomes'" variant="outline" @click="taxDialogOpen = true">Estimate taxes</Button><IconButton variant="default" :label="`Add ${currentCategory.singular}`" @click="edit()"><Plus :size="18" /></IconButton></div></div>
-              <Table v-if="entries.length" class="ledger-table" role="table">
-                <TableCaption class="sr-only">{{ currentCategory.label }} entries</TableCaption>
-                <TableHeader role="rowgroup"><TableRow role="row"><TableHead role="columnheader">Name</TableHead><TableHead role="columnheader" class="text-right">{{ activeCategory === 'incomes' || activeCategory === 'expenses' ? 'Amount' : 'Current balance' }}</TableHead><TableHead role="columnheader">{{ activeCategory === 'investments' ? 'Annual ROI' : activeCategory === 'liabilities' ? 'Interest APR' : 'Frequency' }}</TableHead><TableHead role="columnheader" class="text-right">{{ activeCategory === 'investments' ? 'Surplus allocation' : activeCategory === 'liabilities' ? 'Monthly payment' : 'Monthly total' }}</TableHead><TableHead v-if="activeCategory === 'incomes'" role="columnheader" class="text-right">Yearly total</TableHead><TableHead role="columnheader"><span class="sr-only">Actions</span></TableHead></TableRow></TableHeader>
-                <TableBody role="rowgroup">
-                  <TableRow v-for="entry in entries" :key="entry.id" role="row">
-                    <TableCell role="cell"><div class="entry-name"><span class="entry-icon" :class="activeCategory"><component :is="currentCategory.icon" :size="16" /></span><span>{{ entry.name }}<small v-if="'termMonths' in entry && entry.termMonths" class="muted"> · {{ entry.termMonths / 12 }}-year loan</small></span></div></TableCell>
-                    <TableCell role="cell" :data-label="'amount' in entry ? 'Amount' : 'Current balance'" class="text-right tabular-nums">{{ money('amount' in entry ? entry.amount : entry.balance, true) }}</TableCell>
-                    <TableCell role="cell" :data-label="'frequency' in entry ? 'Frequency' : 'annualRoi' in entry ? 'Annual ROI' : 'Interest APR'"><span v-if="'frequency' in entry" class="frequency-tag">{{ entry.frequency === 'annual' ? 'Annual' : entry.frequency === 'biweekly' ? 'Bi-weekly' : 'Monthly' }}</span><span v-else-if="'annualRoi' in entry" class="rate">{{ entry.annualRoi }}%</span><span v-else>{{ entry.apr }}%</span></TableCell>
-                    <TableCell role="cell" :data-label="'amount' in entry ? 'Monthly total' : 'annualRoi' in entry ? 'Surplus allocation' : 'Monthly payment'" class="text-right tabular-nums">{{ 'amount' in entry ? money(monthlyAmount(entry), true) : 'annualRoi' in entry ? allocationLabel(entry) : money(entry.payment, true) }}</TableCell>
-                    <TableCell v-if="activeCategory === 'incomes' && 'amount' in entry" role="cell" data-label="Yearly total" class="text-right tabular-nums">{{ money(annualAmount(entry), true) }}</TableCell>
-                    <TableCell role="cell"><div class="row-actions"><Tooltip><TooltipTrigger as-child><Button variant="ghost" size="icon" :aria-label="`Edit ${entry.name}`" @click="edit(entry)"><Pencil :size="15" /></Button></TooltipTrigger><TooltipContent>Edit {{ entry.name }}</TooltipContent></Tooltip><Tooltip><TooltipTrigger as-child><Button variant="ghost" size="icon" :aria-label="`Delete ${entry.name}`" @click="confirmDelete(entry)"><Trash2 :size="15" /></Button></TooltipTrigger><TooltipContent>Delete {{ entry.name }}</TooltipContent></Tooltip></div></TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
+              <TabsList class="category-rail" aria-label="Financial categories"><TabsTrigger v-for="category in categories" :key="category.key" :value="category.key" class="category-rail-item"><span>{{ category.label }}</span><span class="entry-count">{{ draft[category.key].length }}</span></TabsTrigger></TabsList>
+              <Card class="ledger-summary-card bg-card">
+                <CardContent class="flex flex-row justify-between p-4 gap-6">
+                  <div class="min-w-0">
+                    <span class="block text-[10px] font-semibold uppercase text-muted-foreground leading-none">{{ summaryMetrics.leftLabel }}</span>
+                    <strong class="mt-1 block text-green-700 font-bold text-lg tabular-nums leading-tight">{{ money(summaryMetrics.leftValue) }}</strong>
+                  </div>
+                  <div class="min-w-0 text-right">
+                    <span class="block text-[10px] font-semibold uppercase text-muted-foreground leading-none">{{ summaryMetrics.rightLabel }}</span>
+                    <strong class="mt-1 block text-green-700 font-bold text-lg tabular-nums leading-tight" :data-testid="activeCategory === 'incomes' ? 'yearly-income' : undefined">{{ money(summaryMetrics.rightValue, true) }}</strong>
+                  </div>
+                </CardContent>
+              </Card>
+              <div class="ledger-toolbar"><div><h3>{{ currentCategory.label }}</h3><span class="muted">{{ activeCategory === 'incomes' || activeCategory === 'expenses' ? 'Monthly total' : 'Current balance' }}: {{ money(categoryTotals[activeCategory]) }}</span><span v-if="activeCategory === 'investments'" class="muted">{{ fixedMonthly ? `${money(fixedMonthly, true)} / month fixed; ` : '' }}{{ cashAllocation.toFixed(2) }}% of {{ fixedMonthly ? 'remainder' : 'surplus' }} stays in cash</span></div><div class="ledger-toolbar-actions"><Button v-if="activeCategory === 'incomes'" variant="outline" @click="taxDialogOpen = true">Estimate taxes</Button><IconButton variant="default" :label="`Add ${currentCategory.singular}`" @click="edit()"><Plus :size="18" /></IconButton></div></div>
+              <div v-if="entries.length" class="ledger-list" role="list" :aria-label="`${currentCategory.label} entries`">
+                <Card v-for="entry in entries" :key="entry.id" class="ledger-entry-card bg-card py-0 gap-0" role="listitem">
+                  <CardContent class="flex flex-row items-center justify-between p-3 gap-3">
+                    <span class="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-lg bg-muted/50"><component :is="entryIcon(entry)" :size="18" /></span>
+                    <div class="flex min-w-0 flex-col flex-grow justify-center">
+                      <div class="flex min-w-0 items-center gap-2 leading-tight"><span class="truncate text-sm font-semibold">{{ entry.name }}</span><Badge class="text-[10px] h-5 px-1.5">{{ entryBadge(entry) }}</Badge></div>
+                      <span class="truncate text-xs text-muted-foreground leading-none mt-1">{{ entryDetail(entry) }}</span>
+                    </div>
+                    <div class="ledger-entry-amount flex flex-shrink-0 flex-col items-end justify-center">
+                      <strong class="text-green-700 font-bold text-sm tabular-nums leading-tight">{{ entryAmount(entry) }}</strong>
+                      <span class="text-[10px] text-muted-foreground mt-1 leading-none">{{ entryAmountLabel(entry) }}</span>
+                    </div>
+                    <div class="row-actions flex flex-shrink-0 items-center">
+                      <Tooltip><TooltipTrigger as-child><Button variant="ghost" size="icon" class="h-8 w-8 text-muted-foreground" :aria-label="`Edit ${entry.name}`" @click="edit(entry)"><Pencil :size="15" /></Button></TooltipTrigger><TooltipContent>Edit {{ entry.name }}</TooltipContent></Tooltip>
+                      <Tooltip><TooltipTrigger as-child><Button variant="ghost" size="icon" class="h-8 w-8 ml-2 text-muted-foreground hover:text-destructive" :aria-label="`Delete ${entry.name}`" @click="confirmDelete(entry)"><Trash2 :size="15" /></Button></TooltipTrigger><TooltipContent>Delete {{ entry.name }}</TooltipContent></Tooltip>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
               <div v-else class="empty-ledger"><span class="empty-icon"><component :is="currentCategory.icon" :size="23" /></span><h3>No {{ activeCategory === 'incomes' ? 'income sources' : currentCategory.label.toLowerCase() }} yet</h3><Button variant="link" @click="edit()"><Plus :size="15" />Add your first {{ currentCategory.singular }}</Button></div>
             </Tabs>
-            </CardContent>
-          </Card>
+          </section>
           <footer class="page-footer"><p>Monthly compounding. Custom surplus allocations. Fixed returns; no taxes or inflation. Estimates, not guarantees.</p><nav aria-label="Legal and support"><a href="/privacy">Privacy policy</a><a href="/terms">Terms of use</a><a href="mailto:support@worthwhile.app">Contact</a></nav></footer>
         </template>
       </main>
