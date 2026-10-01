@@ -19,5 +19,8 @@ describe('amortized loans', () => {
     const plan = emptyPlan()
     plan.liabilities = [loan]
     expect(projectNetWorth(plan).points[12]!.debt).toBe(0)
+    plan.years = 30
+    plan.liabilities = [{ ...loan, balance: 12000000, apr: 6, termMonths: 360, payment: monthlyLoanPayment(12000000, 6, 360) }]
+    expect(projectNetWorth(plan).points[360]!.debt).toBe(0)
   })
 })

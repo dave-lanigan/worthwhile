@@ -9,6 +9,7 @@ const form = reactive({ status: 'single' as UserProfile['taxFilingStatus'], stat
 const result = ref<ReturnType<typeof estimateTaxes>>(null)
 const error = ref('')
 
+watch(form, () => { result.value = null; error.value = '' })
 watch(open, value => {
   if (!value) return
   form.status = props.profile.taxFilingStatus
