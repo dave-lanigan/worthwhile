@@ -28,6 +28,7 @@ const { profile: userProfile } = await useUserProfile(guest)
 const start = useState('forecast-start', () => new Date().toISOString().slice(0, 7))
 const activeCategory = ref<Category>('incomes')
 const editorOpen = ref(false)
+const taxDialogOpen = ref(false)
 const editing = ref<CashFlow | Investment | Liability>()
 const deleting = ref<CashFlow | Investment | Liability>()
 const deleteOpen = ref(false)
@@ -286,7 +287,7 @@ if (!guest) {
             <CardContent>
             <Tabs v-model="activeCategory" class="financial-tabs">
               <TabsList class="category-rail" aria-label="Financial categories"><TabsTrigger v-for="category in categories" :key="category.key" :value="category.key" class="category-rail-item"><span class="category-rail-label"><component :is="category.icon" :size="16" /><span>{{ category.label }}</span><span class="entry-count">{{ draft[category.key].length }}</span></span><span class="category-rail-total">{{ money(categoryTotals[category.key]) }}</span></TabsTrigger></TabsList>
-              <div class="ledger-toolbar"><div><h3>{{ currentCategory.label }}</h3><span class="muted">{{ activeCategory === 'incomes' || activeCategory === 'expenses' ? 'Monthly total' : 'Current balance' }}: {{ money(categoryTotals[activeCategory]) }}</span><span v-if="activeCategory === 'incomes'" class="muted" data-testid="yearly-income">{{ money(yearlyIncome, true) }} / year</span><span v-if="activeCategory === 'investments'" class="muted">{{ fixedMonthly ? `${money(fixedMonthly, true)} / month fixed; ` : '' }}{{ cashAllocation.toFixed(2) }}% of {{ fixedMonthly ? 'remainder' : 'surplus' }} stays in cash</span></div><IconButton variant="default" :label="`Add ${currentCategory.singular}`" @click="edit()"><Plus :size="18" /></IconButton></div>
+              <div class="ledger-toolbar"><div><h3>{{ currentCategory.label }}</h3><span class="muted">{{ activeCategory === 'incomes' || activeCategory === 'expenses' ? 'Monthly total' : 'Current balance' }}: {{ money(categoryTotals[activeCategory]) }}</span><span v-if="activeCategory === 'incomes'" class="muted" data-testid="yearly-income">{{ money(yearlyIncome, true) }} / year</span><span v-if="activeCategory === 'investments'" class="muted">{{ fixedMonthly ? `${money(fixedMonthly, true)} / month fixed; ` : '' }}{{ cashAllocation.toFixed(2) }}% of {{ fixedMonthly ? 'remainder' : 'surplus' }} stays in cash</span></div><div class="ledger-toolbar-actions"><Button v-if="activeCategory === 'incomes'" variant="outline" @click="taxDialogOpen = true">Estimate taxes</Button><IconButton variant="default" :label="`Add ${currentCategory.singular}`" @click="edit()"><Plus :size="18" /></IconButton></div></div>
               <Table v-if="entries.length" class="ledger-table" role="table">
                 <TableCaption class="sr-only">{{ currentCategory.label }} entries</TableCaption>
                 <TableHeader role="rowgroup"><TableRow role="row"><TableHead role="columnheader">Name</TableHead><TableHead role="columnheader" class="text-right">{{ activeCategory === 'incomes' || activeCategory === 'expenses' ? 'Amount' : 'Current balance' }}</TableHead><TableHead role="columnheader">{{ activeCategory === 'investments' ? 'Annual ROI' : activeCategory === 'liabilities' ? 'Interest APR' : 'Frequency' }}</TableHead><TableHead role="columnheader" class="text-right">{{ activeCategory === 'investments' ? 'Surplus allocation' : activeCategory === 'liabilities' ? 'Monthly payment' : 'Monthly total' }}</TableHead><TableHead v-if="activeCategory === 'incomes'" role="columnheader" class="text-right">Yearly total</TableHead><TableHead role="columnheader"><span class="sr-only">Actions</span></TableHead></TableRow></TableHeader>
@@ -310,6 +311,7 @@ if (!guest) {
       </main>
       <IncomeEntryDrawer v-if="activeCategory === 'incomes'" v-model:open="editorOpen" :entry="editingIncome" @save="storeEntry" />
       <FinancialEntryDialog v-else v-model:open="editorOpen" :category="activeCategory" :entry="editing" :investments="draft.investments" @save="storeEntry" />
+      <TaxEstimateDialog v-model:open="taxDialogOpen" :profile="userProfile" :annual-income="yearlyIncome" />
       <Dialog v-model:open="profileDialogOpen">
         <DialogContent class="entry-dialog">
           <DialogHeader class="entry-dialog-header"><DialogTitle>{{ profileDialogMode === 'new' ? 'New profile' : 'Duplicate profile' }}</DialogTitle><DialogDescription>{{ profileDialogMode === 'new' ? 'Start with an empty plan. Your current profile stays saved.' : 'Create a separate copy of the numbers you are viewing now.' }}</DialogDescription></DialogHeader>

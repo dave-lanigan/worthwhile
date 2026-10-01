@@ -507,6 +507,10 @@ main { max-width: 1320px; padding-top: 48px; }
 .entry-form [data-slot='dialog-footer'] [data-slot='button']:not([data-variant='outline']) { background: #102831; color: #ffffff; }
 .entry-form [data-slot='dialog-footer'] [data-slot='button']:not([data-variant='outline']):hover { background: #203f4b; }
 .entry-form .form-error { border: 1px solid #e2b8aa; border-radius: 3px; background: #fff3ef; color: #9d3e28; }
+.ledger-toolbar-actions { display: flex; align-items: center; gap: 10px; }
+.tax-result { display: grid; gap: 8px; padding-top: 16px; border-top: 1px solid #b9c5bd; font-size: 13px; }
+.tax-result > div { display: flex; justify-content: space-between; gap: 12px; }
+.tax-result > div:last-child { padding-top: 8px; border-top: 1px solid #d8e0e4; color: #102831; }
 
 .profile-page { max-width: 900px; background: #ffffff; }
 .profile-header { margin-bottom: 40px; }
