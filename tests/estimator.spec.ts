@@ -25,6 +25,7 @@ async function addEntry(page: Page, category: string, name: string, fields: Reco
   await page.getByRole('tab', { name: new RegExp(`^${category}`) }).click()
   const singular = category === 'Debt' ? 'liability' : category === 'Expenses' ? 'expense' : category === 'Invest' ? 'investment' : 'income'
   await page.getByRole('button', { name: `Add ${singular}`, exact: true }).click()
+  if (category === 'Expenses') await page.getByRole('menuitem', { name: 'Add expense' }).click()
   await page.getByLabel('Name', { exact: true }).fill(name)
   for (const [label, value] of Object.entries(fields)) await page.getByLabel(label, { exact: true }).fill(value)
   await page.getByRole('dialog').getByRole('button', { name: `Add ${singular}`, exact: true }).click()
@@ -45,11 +46,14 @@ test.beforeEach(async ({ request }) => {
   expect(response.ok()).toBeTruthy()
 })
 
-test('opens tax details from income and updates the estimate as details change', async ({ page }) => {
+test('adds tax from expenses and updates its estimate as details change', async ({ page }) => {
   await page.goto('/')
   await addEntry(page, 'Income', 'Salary', { 'Amount (USD)': '5000' })
-  await expect(page.getByRole('button', { name: 'Estimate taxes' })).toHaveCount(0)
-  await page.getByRole('button', { name: 'Tax details' }).click()
+  await expect(page.getByRole('button', { name: 'Tax details' })).toHaveCount(0)
+  await expect(page.getByText('Estimated tax')).toHaveCount(0)
+  await page.getByRole('tab', { name: /^Expenses/ }).click()
+  await page.getByRole('button', { name: 'Add expense', exact: true }).click()
+  await page.getByRole('menuitem', { name: 'Add tax' }).click()
   const dialog = page.getByRole('dialog', { name: 'Tax details' })
   await expect(dialog).toBeVisible()
   await dialog.getByLabel('State of residence (2 letters)').fill('TX')
@@ -59,7 +63,9 @@ test('opens tax details from income and updates the estimate as details change',
   await expect(dialog.getByText('Estimated annual total').locator('..')).toContainText('$3,952.00')
   await expect(dialog.getByRole('button', { name: 'Calculate taxes' })).toHaveCount(0)
   await dialog.getByRole('button', { name: 'Close' }).click()
-  await expect(page.locator('.tax-summary')).toContainText('$3,952.00')
+  await expect(page.getByRole('region', { name: 'Estimated tax expense' })).toContainText('$3,952.00')
+  await page.getByRole('tab', { name: /^Income/ }).click()
+  await expect(page.getByText('Estimated tax')).toHaveCount(0)
 })
 
 test('edit finances, inspect the chart, autosave and reload', async ({ page }, testInfo) => {
