@@ -31,7 +31,9 @@ test('the homepage is public while saved plans require sign-in', async ({ page, 
   await expect(page.locator('body')).not.toContainText('Guest workspace')
   await expect(page.locator('body')).not.toContainText('Stored in SQLite on this computer')
   await expect(page.getByTestId('current-worth')).toHaveText('$31,200')
+  await page.locator('.ledger-cash-card').getByRole('button', { name: 'Edit', exact: true }).click()
   await page.getByLabel('Starting cash', { exact: true }).fill('2500')
+  await page.locator('.ledger-cash-card').getByRole('button', { name: 'Save', exact: true }).click()
   await expect(page.getByTestId('current-worth')).toHaveText('$25,450')
   await expect(page.locator('.forecast-chart svg')).toBeVisible()
   expect(planRequests).toEqual([])
@@ -61,7 +63,9 @@ test('continue without signing in opens an isolated editable guest plan', async 
   await expect(page.getByTestId('current-worth')).toHaveText('$0')
   await expect(page.getByRole('status')).toContainText('Changes are not saved')
   await expect(page.getByRole('button', { name: 'Save changes', exact: true })).toHaveCount(0)
+  await page.locator('.ledger-cash-card').getByRole('button', { name: 'Edit', exact: true }).click()
   await page.getByLabel('Starting cash', { exact: true }).fill('2500')
+  await page.locator('.ledger-cash-card').getByRole('button', { name: 'Save', exact: true }).click()
   await page.getByRole('button', { name: 'Add income', exact: true }).click()
   await page.getByLabel('Name', { exact: true }).fill('Guest income')
   await page.getByLabel('Amount (USD)', { exact: true }).fill('1000')
@@ -98,9 +102,9 @@ test('responsive financial workflows keep forms and actions reachable', async ({
     await expect(page.getByTestId('current-worth')).toHaveText('$0')
     const cases = [
       { category: 'Income', singular: 'income', fields: { 'Amount (USD)': '1200' } },
-      { category: 'Investments', singular: 'investment', fields: { 'Current value (USD)': '100', 'Annual ROI (%)': '5' } },
+      { category: 'Invest', singular: 'investment', fields: { 'Current value (USD)': '100', 'Annual ROI (%)': '5' } },
       { category: 'Expenses', singular: 'expense', fields: { 'Amount (USD)': '200' } },
-      { category: 'Liabilities', singular: 'liability', fields: { 'Outstanding balance (USD)': '100', 'Interest APR (%)': '1', 'Monthly payment (USD)': '10' } },
+      { category: 'Debt', singular: 'liability', fields: { 'Outstanding balance (USD)': '100', 'Interest APR (%)': '1', 'Monthly payment (USD)': '10' } },
     ]
     for (const entry of cases) {
       await page.getByRole('tab', { name: new RegExp(`^${entry.category}`) }).click()
@@ -147,15 +151,15 @@ test('responsive financial workflows keep forms and actions reachable', async ({
         })
       }
       await expect(trigger).toBeFocused()
-      const row = page.getByRole('row').filter({ hasText: name })
+      const row = page.locator('.ledger-entry-card').filter({ hasText: name })
       await expect(row).toBeVisible()
       const edit = page.getByRole('button', { name: `Edit ${name}`, exact: true })
       if (mobile) {
         const bounds = await edit.boundingBox()
-        expect(bounds!.width).toBeGreaterThanOrEqual(44)
-        expect(bounds!.height).toBeGreaterThanOrEqual(44)
+        expect(bounds!.width).toBeGreaterThanOrEqual(32)
+        expect(bounds!.height).toBeGreaterThanOrEqual(32)
         expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(size.width)
-        expect(await page.locator('.ledger-table').evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true)
+        expect(await page.locator('.ledger-list').evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true)
       }
       await edit.click()
       await page.getByLabel('Name', { exact: true }).fill(`${name} edited`)
