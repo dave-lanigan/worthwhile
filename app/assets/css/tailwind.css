@@ -690,6 +690,9 @@ main { max-width: 1320px; padding-top: 48px; }
   width: 32px;
   height: 32px;
 }
+.ledger-entry-amount {
+  min-width: 0;
+}
 
 @media (max-width: 640px) {
   .financial-section {
@@ -703,6 +706,7 @@ main { max-width: 1320px; padding-top: 48px; }
     gap: 8px;
   }
   .ledger-entry-card .row-actions {
+    flex-direction: column;
     gap: 0;
   }
   .ledger-entry-card .row-actions button {
@@ -711,6 +715,14 @@ main { max-width: 1320px; padding-top: 48px; }
   }
   .ledger-entry-card .row-actions button + button {
     margin-left: 0;
+  }
+  .ledger-entry-amount {
+    max-width: 92px;
+  }
+  .ledger-entry-amount strong {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    text-align: right;
   }
   .category-rail {
     gap: 4px;

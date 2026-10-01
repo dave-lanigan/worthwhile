@@ -154,7 +154,8 @@ function entryAmount(entry: CashFlow | Investment | Liability) {
 }
 
 function entryAmountLabel(entry: CashFlow | Investment | Liability) {
-  return 'amount' in entry ? 'Gross in USD' : 'Balance in USD'
+  if (!('amount' in entry)) return 'Balance in USD'
+  return activeCategory.value === 'incomes' ? 'Take-home in USD' : 'Amount in USD'
 }
 
 function preserveAllocations() {
@@ -381,7 +382,7 @@ if (!guest) {
                       <div class="flex min-w-0 items-center gap-2 leading-tight"><span class="truncate text-sm font-semibold">{{ entry.name }}</span><Badge class="text-[10px] h-5 px-1.5">{{ entryBadge(entry) }}</Badge></div>
                       <span class="truncate text-xs text-muted-foreground leading-none mt-1">{{ entryDetail(entry) }}</span>
                     </div>
-                    <div class="flex flex-shrink-0 flex-col items-end justify-center">
+                    <div class="ledger-entry-amount flex flex-shrink-0 flex-col items-end justify-center">
                       <strong class="text-green-700 font-bold text-sm tabular-nums leading-tight">{{ entryAmount(entry) }}</strong>
                       <span class="text-[10px] text-muted-foreground mt-1 leading-none">{{ entryAmountLabel(entry) }}</span>
                     </div>
