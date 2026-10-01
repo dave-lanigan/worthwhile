@@ -13,7 +13,7 @@ const inputs = defineModel<TaxInputs>('inputs', { required: true })
     <DialogContent class="entry-dialog">
       <DialogHeader class="entry-dialog-header">
         <DialogTitle>Tax details</DialogTitle>
-        <DialogDescription>Filing status, state, deductions and exemptions for a basic {{ TAX_YEAR }} estimate.</DialogDescription>
+        <DialogDescription>Your {{ TAX_YEAR }} estimate uses income from your plan and your profile address. Adjust filing status, deductions and exemptions here.</DialogDescription>
       </DialogHeader>
       <div class="entry-form">
         <div class="field entry-name-field"><Label for="tax-status">Filing status</Label><Select v-model="inputs.status"><SelectTrigger id="tax-status" class="w-full"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="single">Single</SelectItem><SelectItem value="married-jointly">Married filing jointly</SelectItem><SelectItem value="married-separately">Married filing separately</SelectItem><SelectItem value="head-of-household">Head of household</SelectItem></SelectContent></Select></div>
