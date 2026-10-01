@@ -14,11 +14,14 @@ export type ProjectionPoint = {
 }
 
 export function monthlyAmount(flow: CashFlow): number {
-  return flow.frequency === 'annual' ? Math.round(flow.amount / 12) : flow.amount
+  if (flow.frequency === 'annual') return Math.round(flow.amount / 12)
+  if (flow.frequency === 'biweekly') return Math.round((flow.amount * 26) / 12)
+  return flow.amount
 }
 
 export function annualAmount(flow: CashFlow): number {
-  return flow.frequency === 'annual' ? flow.amount : flow.amount * 12
+  if (flow.frequency === 'annual') return flow.amount
+  return flow.amount * (flow.frequency === 'biweekly' ? 26 : 12)
 }
 
 function checked(value: number): number {
