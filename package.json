@@ -36,6 +36,7 @@
     "tailwind-merge": "latest",
     "tailwindcss": "latest",
     "tw-animate-css": "latest",
+    "vaul-vue": "^0.4.1",
     "vue": "latest",
     "zod": "latest"
   },
