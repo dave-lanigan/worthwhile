@@ -32,7 +32,6 @@ const activeCategory = ref<Category>('incomes')
 const cashEditing = ref(false)
 const editorOpen = ref(false)
 const taxDialogOpen = ref(false)
-const taxAdded = ref(false)
 const taxInputs = reactive<TaxInputs>({ status: 'single', state: '', deductions: '0', exemptions: '0' })
 watch(userProfile, profile => {
   taxInputs.status = profile.taxFilingStatus
@@ -176,10 +175,6 @@ function preserveAllocations() {
 function edit(entry?: CashFlow | Investment | Liability) {
   editing.value = entry
   editorOpen.value = true
-}
-function addTax() {
-  taxAdded.value = true
-  taxDialogOpen.value = true
 }
 const editingIncome = computed(() => editing.value && 'frequency' in editing.value ? editing.value : undefined)
 function storeEntry(entry: CashFlow | Investment | Liability) {
@@ -387,14 +382,7 @@ if (!guest) {
                 </CardContent>
               </Card>
               <div class="ledger-toolbar"><div><h3>{{ currentCategory.label }}</h3><span class="muted">{{ activeCategory === 'incomes' || activeCategory === 'expenses' ? 'Monthly total' : 'Current balance' }}: {{ money(categoryTotals[activeCategory]) }}</span><span v-if="activeCategory === 'investments'" class="muted">{{ fixedMonthly ? `${money(fixedMonthly, true)} / month fixed; ` : '' }}{{ cashAllocation.toFixed(2) }}% of {{ fixedMonthly ? 'remainder' : 'surplus' }} stays in cash</span></div>
-                <DropdownMenuRoot v-if="activeCategory === 'expenses'" :modal="false">
-                  <DropdownMenuTrigger as-child><IconButton variant="default" label="Add expense"><Plus :size="18" /></IconButton></DropdownMenuTrigger>
-                  <DropdownMenuPortal><DropdownMenuContent class="profile-menu relative z-50" align="end" :side-offset="6" :collision-padding="12" @close-auto-focus="event => { if (taxDialogOpen || editorOpen) event.preventDefault() }">
-                    <DropdownMenuItem @select="edit()">Add expense</DropdownMenuItem>
-                    <DropdownMenuItem @select="addTax">{{ taxAdded ? 'Edit tax' : 'Add tax' }}</DropdownMenuItem>
-                  </DropdownMenuContent></DropdownMenuPortal>
-                </DropdownMenuRoot>
-                <IconButton v-else variant="default" :label="`Add ${currentCategory.singular}`" @click="edit()"><Plus :size="18" /></IconButton>
+                <IconButton variant="default" :label="`Add ${currentCategory.singular}`" @click="edit()"><Plus :size="18" /></IconButton>
               </div>
               <div v-if="entries.length" class="ledger-list" role="list" :aria-label="`${currentCategory.label} entries`">
                 <Card v-for="entry in entries" :key="entry.id" class="ledger-entry-card bg-card py-0 gap-0" role="listitem">
@@ -415,12 +403,11 @@ if (!guest) {
                   </CardContent>
                 </Card>
               </div>
-              <div v-else-if="activeCategory === 'expenses' && !taxAdded" class="empty-ledger"><span class="empty-icon"><component :is="currentCategory.icon" :size="23" /></span><h3>No expenses yet</h3><span class="muted">Use Add expense to add an expense or tax.</span></div>
-              <div v-else-if="activeCategory !== 'expenses'" class="empty-ledger"><span class="empty-icon"><component :is="currentCategory.icon" :size="23" /></span><h3>No {{ activeCategory === 'incomes' ? 'income sources' : currentCategory.label.toLowerCase() }} yet</h3><Button variant="link" @click="edit()"><Plus :size="15" />Add your first {{ currentCategory.singular }}</Button></div>
-              <Card v-if="activeCategory === 'expenses' && taxAdded" class="ledger-entry-card tax-entry bg-card py-0 gap-0" role="region" aria-label="Estimated tax expense">
+              <div v-else class="empty-ledger"><span class="empty-icon"><component :is="currentCategory.icon" :size="23" /></span><h3>No {{ activeCategory === 'incomes' ? 'income sources' : currentCategory.label.toLowerCase() }} yet</h3><Button variant="link" @click="edit()"><Plus :size="15" />Add your first {{ currentCategory.singular }}</Button></div>
+              <Card v-if="activeCategory === 'incomes'" class="ledger-entry-card tax-entry bg-card py-0 gap-0" role="region" aria-label="Estimated income tax">
                 <CardContent class="flex flex-row items-center justify-between p-3 gap-3">
                   <span class="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-lg bg-muted/50"><Landmark :size="18" /></span>
-                  <div class="flex min-w-0 flex-col flex-grow justify-center"><strong class="text-sm">Estimated tax</strong><span class="text-xs text-muted-foreground">Estimate only · not in outflow; income is take-home</span></div>
+                  <div class="flex min-w-0 flex-col flex-grow justify-center"><strong class="text-sm">Estimated annual tax</strong><span class="text-xs text-muted-foreground">Estimate only · income is entered after tax</span></div>
                   <strong class="text-sm tabular-nums">{{ taxEstimate ? money(taxEstimate.total, true) : '—' }}</strong>
                 </CardContent>
                 <Button type="button" variant="ghost" class="tax-details-button" @click="taxDialogOpen = true">Tax details<ChevronRight :size="16" aria-hidden="true" /></Button>

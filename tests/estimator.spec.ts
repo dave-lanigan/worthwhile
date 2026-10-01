@@ -46,14 +46,12 @@ test.beforeEach(async ({ request }) => {
   expect(response.ok()).toBeTruthy()
 })
 
-test('adds tax from expenses and updates its estimate as details change', async ({ page }) => {
+test('shows tax in income and updates its estimate as details change', async ({ page }) => {
   await page.goto('/')
   await addEntry(page, 'Income', 'Salary', { 'Amount (USD)': '5000' })
-  await expect(page.getByRole('button', { name: 'Tax details' })).toHaveCount(0)
-  await expect(page.getByText('Estimated tax')).toHaveCount(0)
-  await page.getByRole('tab', { name: /^Expenses/ }).click()
-  await page.getByRole('button', { name: 'Add expense', exact: true }).click()
-  await page.getByRole('menuitem', { name: 'Add tax' }).click()
+  const taxCard = page.getByRole('region', { name: 'Estimated income tax' })
+  await expect(taxCard).toBeVisible()
+  await taxCard.getByRole('button', { name: 'Tax details' }).click()
   const dialog = page.getByRole('dialog', { name: 'Tax details' })
   await expect(dialog).toBeVisible()
   await dialog.getByLabel('State of residence (2 letters)').fill('TX')
@@ -63,12 +61,14 @@ test('adds tax from expenses and updates its estimate as details change', async 
   await expect(dialog.getByText('Estimated annual total').locator('..')).toContainText('$3,952.00')
   await expect(dialog.getByRole('button', { name: 'Calculate taxes' })).toHaveCount(0)
   await dialog.getByRole('button', { name: 'Close' }).click()
-  await expect(page.getByRole('region', { name: 'Estimated tax expense' })).toContainText('$3,952.00')
-  await page.getByRole('region', { name: 'Estimated tax expense' }).getByRole('button', { name: 'Tax details' }).click()
+  await expect(taxCard).toContainText('$3,952.00')
+  await taxCard.getByRole('button', { name: 'Tax details' }).click()
   await expect(dialog).toBeVisible()
   await dialog.getByRole('button', { name: 'Close' }).click()
-  await page.getByRole('tab', { name: /^Income/ }).click()
-  await expect(page.getByText('Estimated tax')).toHaveCount(0)
+  await page.getByRole('tab', { name: /^Expenses/ }).click()
+  await expect(page.getByRole('region', { name: 'Estimated income tax' })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Add expense', exact: true }).click()
+  await expect(page.getByText('Recurring spending, excluding debt payments entered under liabilities.')).toBeVisible()
 })
 
 test('edit finances, inspect the chart, autosave and reload', async ({ page }, testInfo) => {
