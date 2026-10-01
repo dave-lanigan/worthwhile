@@ -24,12 +24,12 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     fetch(request)
       .then((response) => {
-        if (response.ok && (request.mode === 'navigate' || url.pathname.startsWith('/_nuxt/'))) {
+        if (response.ok && url.pathname.startsWith('/_nuxt/')) {
           const copy = response.clone()
           caches.open(CACHE_NAME).then((cache) => cache.put(request, copy))
         }
         return response
       })
-      .catch(() => caches.match(request).then((cached) => cached || caches.match('/'))),
+      .catch(() => caches.match(request)),
   )
 })

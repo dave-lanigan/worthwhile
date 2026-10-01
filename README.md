@@ -13,6 +13,8 @@ npm run dev
 
 Open the loopback URL printed by Nuxt. Add income, investments, expenses, liabilities, and starting cash. Edits update the chart immediately; signed-in accounts automatically save valid changes after a short pause. The status shows when saving completes. Guest edits remain temporary.
 
+The production site includes a Chrome-installable Progressive Web App manifest, app icons, and a service worker for static asset resilience. On a secure deployed origin, use Chrome's install icon in the address bar or **Install Worthwhile** from the browser menu. Financial API responses are never cached by the service worker.
+
 Automatic saves are serialized so edits made during a request are saved afterward with the updated revision. Failed saves retain the draft and show a retry action. Revision conflicts stop automatic writes until you explicitly reload the saved plan; invalid forecasts are never saved. Leaving with pending or failed changes triggers the browser's unsaved-changes warning.
 
 For the production server:
