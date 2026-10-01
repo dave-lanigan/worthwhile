@@ -2,6 +2,7 @@ import type { UserProfile } from '../schemas/financial-plan'
 
 export const TAX_YEAR = 2026
 type FilingStatus = UserProfile['taxFilingStatus']
+export type TaxInputs = { status: FilingStatus; state: string; deductions: string; exemptions: string }
 const federal: Record<FilingStatus, { deduction: number; thresholds: number[] }> = {
   single: { deduction: 16100, thresholds: [12400, 50400, 105700, 201775, 256225, 640600] },
   'married-jointly': { deduction: 32200, thresholds: [24800, 100800, 211400, 403550, 512450, 768700] },
@@ -38,4 +39,11 @@ export function estimateTaxes(income: number, status: FilingStatus, state: strin
   }
   const stateTax = Math.round(taxable * stateRates[state]!)
   return { federalTax: Math.round(federalTax), stateTax, total: Math.round(federalTax) + stateTax, taxable, standardDeduction: deduction * 100 }
+}
+
+export function estimateTaxInputs(income: number, inputs: TaxInputs) {
+  if ([inputs.deductions, inputs.exemptions].some(value => value.trim() === '')) return null
+  const deductions = Math.round(Number(inputs.deductions) * 100)
+  const exemptions = Math.round(Number(inputs.exemptions) * 100)
+  return estimateTaxes(income, inputs.status, inputs.state.trim().toUpperCase(), deductions, exemptions)
 }
