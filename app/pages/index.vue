@@ -364,11 +364,11 @@ if (!guest) {
                 <CardContent class="flex flex-row justify-between p-4 gap-6">
                   <div class="min-w-0">
                     <span class="block text-[10px] font-semibold uppercase text-muted-foreground leading-none">{{ summaryMetrics.leftLabel }}</span>
-                    <strong class="mt-1 block text-green-600 font-bold text-lg tabular-nums leading-tight">{{ money(summaryMetrics.leftValue) }}</strong>
+                    <strong class="mt-1 block text-green-700 font-bold text-lg tabular-nums leading-tight">{{ money(summaryMetrics.leftValue) }}</strong>
                   </div>
                   <div class="min-w-0 text-right">
                     <span class="block text-[10px] font-semibold uppercase text-muted-foreground leading-none">{{ summaryMetrics.rightLabel }}</span>
-                    <strong class="mt-1 block text-green-600 font-bold text-lg tabular-nums leading-tight" :data-testid="activeCategory === 'incomes' ? 'yearly-income' : undefined">{{ money(summaryMetrics.rightValue, true) }}</strong>
+                    <strong class="mt-1 block text-green-700 font-bold text-lg tabular-nums leading-tight" :data-testid="activeCategory === 'incomes' ? 'yearly-income' : undefined">{{ money(summaryMetrics.rightValue, true) }}</strong>
                   </div>
                 </CardContent>
               </Card>
@@ -382,7 +382,7 @@ if (!guest) {
                       <span class="truncate text-xs text-muted-foreground leading-none mt-1">{{ entryDetail(entry) }}</span>
                     </div>
                     <div class="flex flex-shrink-0 flex-col items-end justify-center">
-                      <strong class="text-green-600 font-bold text-sm tabular-nums leading-tight">{{ entryAmount(entry) }}</strong>
+                      <strong class="text-green-700 font-bold text-sm tabular-nums leading-tight">{{ entryAmount(entry) }}</strong>
                       <span class="text-[10px] text-muted-foreground mt-1 leading-none">{{ entryAmountLabel(entry) }}</span>
                     </div>
                     <div class="row-actions flex flex-shrink-0 items-center">
