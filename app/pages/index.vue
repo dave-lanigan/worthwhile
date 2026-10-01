@@ -359,7 +359,7 @@ if (!guest) {
               </CardContent>
             </Card>
             <Tabs v-model="activeCategory" class="financial-tabs">
-              <TabsList class="category-rail flex flex-row items-center gap-2 overflow-x-auto py-2" aria-label="Financial categories"><TabsTrigger v-for="category in categories" :key="category.key" :value="category.key" class="category-rail-item flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium border"><component :is="category.icon" :size="14" /><span>{{ category.label }}</span><span class="entry-count w-4 h-4 text-[10px] bg-muted flex items-center justify-center rounded-full">{{ draft[category.key].length }}</span></TabsTrigger></TabsList>
+              <TabsList class="category-rail" aria-label="Financial categories"><TabsTrigger v-for="category in categories" :key="category.key" :value="category.key" class="category-rail-item"><span>{{ category.label }}</span><span class="entry-count">{{ draft[category.key].length }}</span></TabsTrigger></TabsList>
               <Card class="ledger-summary-card bg-card">
                 <CardContent class="flex flex-row justify-between p-4 gap-6">
                   <div class="min-w-0">
