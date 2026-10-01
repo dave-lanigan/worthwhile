@@ -28,5 +28,21 @@ export default defineNuxtConfig({
   runtimeConfig: { databasePath: '.data/networth.sqlite' },
   routeRules: { '/': { headers: { 'cache-control': 'private, no-store' } } },
   nitro: { preset: process.env.VERCEL ? 'vercel' : 'node-server' },
-  app: { head: { title: 'Worthwhile | Net worth estimator', meta: [{ name: 'description', content: 'Your personal net worth forecast.' }] } },
+  app: {
+    head: {
+      title: 'Worthwhile | Net worth estimator',
+      meta: [
+        { name: 'description', content: 'Your personal net worth forecast.' },
+        { name: 'theme-color', content: '#102831' },
+        { name: 'mobile-web-app-capable', content: 'yes' },
+        { name: 'apple-mobile-web-app-capable', content: 'yes' },
+        { name: 'apple-mobile-web-app-status-bar-style', content: 'black-translucent' },
+      ],
+      link: [
+        { rel: 'manifest', href: '/site.webmanifest' },
+        { rel: 'icon', href: '/icons/icon.svg', type: 'image/svg+xml' },
+        { rel: 'apple-touch-icon', href: '/icons/icon.svg' },
+      ],
+    },
+  },
 })
