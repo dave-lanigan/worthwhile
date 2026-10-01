@@ -37,6 +37,7 @@ function selectFrequency(value: unknown) {
 }
 
 function updateViewport() {
+  if (import.meta.server) return
   const visual = window.visualViewport
   const height = visual?.height ?? window.innerHeight
   const offset = visual ? Math.max(0, window.innerHeight - visual.height - visual.offsetTop) : 0
