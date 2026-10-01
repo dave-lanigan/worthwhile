@@ -370,14 +370,21 @@ if (!guest) {
             <Tabs v-model="activeCategory" class="financial-tabs">
               <TabsList class="category-rail" aria-label="Financial categories"><TabsTrigger v-for="category in categories" :key="category.key" :value="category.key" class="category-rail-item"><span>{{ category.label }}</span><span class="entry-count">{{ draft[category.key].length }}</span></TabsTrigger></TabsList>
               <Card class="ledger-summary-card bg-card">
-                <CardContent class="flex flex-row justify-between p-4 gap-6">
-                  <div class="min-w-0">
-                    <span class="block text-[10px] font-semibold uppercase text-muted-foreground leading-none">{{ summaryMetrics.leftLabel }}</span>
-                    <strong class="mt-1 block text-green-700 font-bold text-lg tabular-nums leading-tight">{{ money(summaryMetrics.leftValue) }}</strong>
+                <CardContent class="flex flex-col p-4">
+                  <div class="flex justify-between gap-6">
+                    <div class="min-w-0">
+                      <span class="block text-[10px] font-semibold uppercase text-muted-foreground leading-none">{{ summaryMetrics.leftLabel }}</span>
+                      <strong class="mt-1 block text-green-700 font-bold text-lg tabular-nums leading-tight">{{ money(summaryMetrics.leftValue) }}</strong>
+                    </div>
+                    <div class="min-w-0 text-right">
+                      <span class="block text-[10px] font-semibold uppercase text-muted-foreground leading-none">{{ summaryMetrics.rightLabel }}</span>
+                      <strong class="mt-1 block text-green-700 font-bold text-lg tabular-nums leading-tight" :data-testid="activeCategory === 'incomes' ? 'yearly-income' : undefined">{{ money(summaryMetrics.rightValue, true) }}</strong>
+                    </div>
                   </div>
-                  <div class="min-w-0 text-right">
-                    <span class="block text-[10px] font-semibold uppercase text-muted-foreground leading-none">{{ summaryMetrics.rightLabel }}</span>
-                    <strong class="mt-1 block text-green-700 font-bold text-lg tabular-nums leading-tight" :data-testid="activeCategory === 'incomes' ? 'yearly-income' : undefined">{{ money(summaryMetrics.rightValue, true) }}</strong>
+                  <div v-if="activeCategory === 'incomes'" class="income-tax-summary">
+                    <span class="income-tax-label">Estimated annual tax <small>Estimate only · income is entered after tax</small></span>
+                    <strong class="tabular-nums">{{ taxEstimate ? money(taxEstimate.total, true) : '—' }}</strong>
+                    <Button type="button" variant="ghost" class="income-tax-details" @click="taxDialogOpen = true">Tax details<ChevronRight :size="16" aria-hidden="true" /></Button>
                   </div>
                 </CardContent>
               </Card>
@@ -404,14 +411,6 @@ if (!guest) {
                 </Card>
               </div>
               <div v-else class="empty-ledger"><span class="empty-icon"><component :is="currentCategory.icon" :size="23" /></span><h3>No {{ activeCategory === 'incomes' ? 'income sources' : currentCategory.label.toLowerCase() }} yet</h3><Button variant="link" @click="edit()"><Plus :size="15" />Add your first {{ currentCategory.singular }}</Button></div>
-              <Card v-if="activeCategory === 'incomes'" class="ledger-entry-card tax-entry bg-card py-0 gap-0" role="region" aria-label="Estimated income tax">
-                <CardContent class="flex flex-row items-center justify-between p-3 gap-3">
-                  <span class="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-lg bg-muted/50"><Landmark :size="18" /></span>
-                  <div class="flex min-w-0 flex-col flex-grow justify-center"><strong class="text-sm">Estimated annual tax</strong><span class="text-xs text-muted-foreground">Estimate only · income is entered after tax</span></div>
-                  <strong class="text-sm tabular-nums">{{ taxEstimate ? money(taxEstimate.total, true) : '—' }}</strong>
-                </CardContent>
-                <Button type="button" variant="ghost" class="tax-details-button" @click="taxDialogOpen = true">Tax details<ChevronRight :size="16" aria-hidden="true" /></Button>
-              </Card>
             </Tabs>
           </section>
           <footer class="page-footer"><p>Monthly compounding. Custom surplus allocations. Fixed returns; no taxes or inflation. Estimates, not guarantees.</p><nav aria-label="Legal and support"><a href="/privacy">Privacy policy</a><a href="/terms">Terms of use</a><a href="mailto:support@worthwhile.app">Contact</a></nav></footer>
@@ -419,7 +418,7 @@ if (!guest) {
       </main>
       <IncomeEntryDrawer v-if="activeCategory === 'incomes'" v-model:open="editorOpen" :entry="editingIncome" @save="storeEntry" />
       <FinancialEntryDialog v-else v-model:open="editorOpen" :category="activeCategory" :entry="editing" :investments="draft.investments" @save="storeEntry" />
-      <TaxEstimateDialog v-model:open="taxDialogOpen" v-model:inputs="taxInputs" :annual-income="yearlyIncome" :result="taxEstimate" />
+      <TaxEstimateDialog v-model:open="taxDialogOpen" v-model:inputs="taxInputs" :result="taxEstimate" />
       <Dialog v-model:open="profileDialogOpen">
         <DialogContent class="entry-dialog">
           <DialogHeader class="entry-dialog-header"><DialogTitle>{{ profileDialogMode === 'new' ? 'New profile' : 'Duplicate profile' }}</DialogTitle><DialogDescription>{{ profileDialogMode === 'new' ? 'Start with an empty plan. Your current profile stays saved.' : 'Create a separate copy of the numbers you are viewing now.' }}</DialogDescription></DialogHeader>
