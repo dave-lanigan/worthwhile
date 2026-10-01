@@ -691,8 +691,20 @@ main { max-width: 1320px; padding-top: 48px; }
 .ledger-entry-amount {
   min-width: 0;
 }
+.tax-entry .tax-details-button {
+  flex-shrink: 0;
+  font-size: 12px;
+}
 
 @media (max-width: 640px) {
+  .tax-entry [data-slot='card-content'] {
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr) auto;
+  }
+  .tax-entry .tax-details-button {
+    grid-column: 2 / -1;
+    justify-self: end;
+  }
   .financial-section {
     padding-inline: 0;
   }
