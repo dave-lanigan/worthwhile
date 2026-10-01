@@ -159,6 +159,8 @@ describe('net worth projections', () => {
     expect(monthlyAmount({ id: 'annual', name: 'Annual', amount: 120000, frequency: 'annual' })).toBe(10000)
     expect(annualAmount({ id: 'annual', name: 'Annual', amount: 10001, frequency: 'annual' })).toBe(10001)
     expect(annualAmount({ id: 'monthly', name: 'Monthly', amount: 10001, frequency: 'monthly' })).toBe(120012)
+    expect(annualAmount({ id: 'biweekly', name: 'Bi-weekly', amount: 100000, frequency: 'biweekly' })).toBe(2600000)
+    expect(monthlyAmount({ id: 'biweekly', name: 'Bi-weekly', amount: 100000, frequency: 'biweekly' })).toBe(216667)
     expect(financialPlanSchema.safeParse({ ...emptyPlan(), startingCash: -1 }).success).toBe(false)
     expect(financialPlanSchema.safeParse({ ...emptyPlan(), startingCash: Infinity }).success).toBe(false)
     expect(() => projectNetWorth({ ...emptyPlan(), years: 40, investments: [{ id: 'fund', name: 'Fund', balance: 100000000, annualRoi: 1000 }] })).toThrow('exceeds')

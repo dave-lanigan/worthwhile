@@ -106,6 +106,7 @@ function edit(entry?: CashFlow | Investment | Liability) {
   editing.value = entry
   editorOpen.value = true
 }
+const editingIncome = computed(() => editing.value && 'frequency' in editing.value ? editing.value : undefined)
 function storeEntry(entry: CashFlow | Investment | Liability) {
   if (activeCategory.value === 'investments') preserveAllocations()
   const items = draft.value[activeCategory.value] as (CashFlow | Investment | Liability)[]
@@ -293,7 +294,7 @@ if (!guest) {
                   <TableRow v-for="entry in entries" :key="entry.id" role="row">
                     <TableCell role="cell"><div class="entry-name"><span class="entry-icon" :class="activeCategory"><component :is="currentCategory.icon" :size="16" /></span><span>{{ entry.name }}</span></div></TableCell>
                     <TableCell role="cell" :data-label="'amount' in entry ? 'Amount' : 'Current balance'" class="text-right tabular-nums">{{ money('amount' in entry ? entry.amount : entry.balance, true) }}</TableCell>
-                    <TableCell role="cell" :data-label="'frequency' in entry ? 'Frequency' : 'annualRoi' in entry ? 'Annual ROI' : 'Interest APR'"><span v-if="'frequency' in entry" class="frequency-tag">{{ entry.frequency === 'annual' ? 'Annual' : 'Monthly' }}</span><span v-else-if="'annualRoi' in entry" class="rate">{{ entry.annualRoi }}%</span><span v-else>{{ entry.apr }}%</span></TableCell>
+                    <TableCell role="cell" :data-label="'frequency' in entry ? 'Frequency' : 'annualRoi' in entry ? 'Annual ROI' : 'Interest APR'"><span v-if="'frequency' in entry" class="frequency-tag">{{ entry.frequency === 'annual' ? 'Annual' : entry.frequency === 'biweekly' ? 'Bi-weekly' : 'Monthly' }}</span><span v-else-if="'annualRoi' in entry" class="rate">{{ entry.annualRoi }}%</span><span v-else>{{ entry.apr }}%</span></TableCell>
                     <TableCell role="cell" :data-label="'amount' in entry ? 'Monthly total' : 'annualRoi' in entry ? 'Surplus allocation' : 'Monthly payment'" class="text-right tabular-nums">{{ 'amount' in entry ? money(monthlyAmount(entry), true) : 'annualRoi' in entry ? allocationLabel(entry) : money(entry.payment, true) }}</TableCell>
                     <TableCell v-if="activeCategory === 'incomes' && 'amount' in entry" role="cell" data-label="Yearly total" class="text-right tabular-nums">{{ money(annualAmount(entry), true) }}</TableCell>
                     <TableCell role="cell"><div class="row-actions"><Tooltip><TooltipTrigger as-child><Button variant="ghost" size="icon" :aria-label="`Edit ${entry.name}`" @click="edit(entry)"><Pencil :size="15" /></Button></TooltipTrigger><TooltipContent>Edit {{ entry.name }}</TooltipContent></Tooltip><Tooltip><TooltipTrigger as-child><Button variant="ghost" size="icon" :aria-label="`Delete ${entry.name}`" @click="confirmDelete(entry)"><Trash2 :size="15" /></Button></TooltipTrigger><TooltipContent>Delete {{ entry.name }}</TooltipContent></Tooltip></div></TableCell>
@@ -307,7 +308,8 @@ if (!guest) {
           <footer class="page-footer"><p>Monthly compounding. Custom surplus allocations. Fixed returns; no taxes or inflation. Estimates, not guarantees.</p><nav aria-label="Legal and support"><a href="/privacy">Privacy policy</a><a href="/terms">Terms of use</a><a href="mailto:support@worthwhile.app">Contact</a></nav></footer>
         </template>
       </main>
-      <FinancialEntryDialog v-model:open="editorOpen" :category="activeCategory" :entry="editing" :investments="draft.investments" @save="storeEntry" />
+      <IncomeEntryDrawer v-if="activeCategory === 'incomes'" v-model:open="editorOpen" :entry="editingIncome" @save="storeEntry" />
+      <FinancialEntryDialog v-else v-model:open="editorOpen" :category="activeCategory" :entry="editing" :investments="draft.investments" @save="storeEntry" />
       <Dialog v-model:open="profileDialogOpen">
         <DialogContent class="entry-dialog">
           <DialogHeader class="entry-dialog-header"><DialogTitle>{{ profileDialogMode === 'new' ? 'New profile' : 'Duplicate profile' }}</DialogTitle><DialogDescription>{{ profileDialogMode === 'new' ? 'Start with an empty plan. Your current profile stays saved.' : 'Create a separate copy of the numbers you are viewing now.' }}</DialogDescription></DialogHeader>
