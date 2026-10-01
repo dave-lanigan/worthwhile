@@ -378,12 +378,12 @@ if (!guest) {
                   <div class="min-w-0 text-right">
                     <span class="block text-[10px] font-semibold uppercase text-muted-foreground leading-none">{{ summaryMetrics.rightLabel }}</span>
                     <strong class="mt-1 block text-green-700 font-bold text-lg tabular-nums leading-tight" :data-testid="activeCategory === 'incomes' ? 'yearly-income' : undefined">{{ money(summaryMetrics.rightValue, true) }}</strong>
-                    <div v-if="activeCategory === 'incomes'" class="tax-summary">
-                      <span>{{ taxEstimate ? `Est. annual tax ${money(taxEstimate.total, true)}` : 'Add a state for a tax estimate' }}</span>
-                      <IconButton label="Adjust tax estimate" @click="taxDialogOpen = true"><Pencil :size="14" /></IconButton>
-                    </div>
                   </div>
                 </CardContent>
+                <div v-if="activeCategory === 'incomes'" class="tax-summary">
+                  <span>{{ taxEstimate ? `Estimated annual tax · ${money(taxEstimate.total, true)}` : 'Tax estimate unavailable' }}</span>
+                  <Button variant="link" class="tax-details-link" @click="taxDialogOpen = true">Tax details</Button>
+                </div>
               </Card>
               <div class="ledger-toolbar"><div><h3>{{ currentCategory.label }}</h3><span class="muted">{{ activeCategory === 'incomes' || activeCategory === 'expenses' ? 'Monthly total' : 'Current balance' }}: {{ money(categoryTotals[activeCategory]) }}</span><span v-if="activeCategory === 'investments'" class="muted">{{ fixedMonthly ? `${money(fixedMonthly, true)} / month fixed; ` : '' }}{{ cashAllocation.toFixed(2) }}% of {{ fixedMonthly ? 'remainder' : 'surplus' }} stays in cash</span></div><IconButton variant="default" :label="`Add ${currentCategory.singular}`" @click="edit()"><Plus :size="18" /></IconButton></div>
               <div v-if="entries.length" class="ledger-list" role="list" :aria-label="`${currentCategory.label} entries`">

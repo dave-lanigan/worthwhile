@@ -45,6 +45,23 @@ test.beforeEach(async ({ request }) => {
   expect(response.ok()).toBeTruthy()
 })
 
+test('opens tax details from income and updates the estimate as details change', async ({ page }) => {
+  await page.goto('/')
+  await addEntry(page, 'Income', 'Salary', { 'Amount (USD)': '5000' })
+  await expect(page.getByRole('button', { name: 'Estimate taxes' })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Tax details' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Tax details' })
+  await expect(dialog).toBeVisible()
+  await dialog.getByLabel('State of residence (2 letters)').fill('TX')
+  await dialog.getByLabel('Itemized deductions (USD)').fill('20000')
+  await expect(dialog.getByText('Estimated annual total').locator('..')).toContainText('$4,552.00')
+  await dialog.getByLabel('Additional exemptions (USD)').fill('5000')
+  await expect(dialog.getByText('Estimated annual total').locator('..')).toContainText('$3,952.00')
+  await expect(dialog.getByRole('button', { name: 'Calculate taxes' })).toHaveCount(0)
+  await dialog.getByRole('button', { name: 'Close' }).click()
+  await expect(page.locator('.tax-summary')).toContainText('$3,952.00')
+})
+
 test('edit finances, inspect the chart, autosave and reload', async ({ page }, testInfo) => {
   const errors: string[] = []
   page.on('pageerror', error => errors.push(error.message))
