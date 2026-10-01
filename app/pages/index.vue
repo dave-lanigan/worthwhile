@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowDownLeft, ArrowUpRight, BookmarkPlus, ChartNoAxesCombined, ChevronRight, CircleAlert, Dices, EllipsisVertical, Landmark, Layers, LoaderCircle, Pencil, Plus, RefreshCw, Trash2, TrendingUp, UserRound, Wallet } from 'lucide-vue-next'
+import { ArrowDownLeft, ArrowUpRight, ChartNoAxesCombined, ChevronRight, CircleAlert, Copy, Dices, EllipsisVertical, Landmark, Layers, LoaderCircle, Pencil, Plus, RefreshCw, Trash2, TrendingUp, UserRound, Wallet } from 'lucide-vue-next'
 import { DropdownMenuRoot, DropdownMenuTrigger, DropdownMenuPortal, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem } from 'reka-ui'
 import { emptyPlan, investmentAllocation, type CashFlow, type Category, type Investment, type Liability } from '#shared/schemas/financial-plan'
 import { annualAmount, monthlyAmount, simulateNetWorth } from '#shared/utils/projection'
@@ -214,7 +214,7 @@ if (!guest) {
                 <DropdownMenuContent class="profile-menu relative z-50" align="end" :side-offset="6" :collision-padding="12" @close-auto-focus="event => { if (profileDialogOpen || reloadOpen || clearOpen) event.preventDefault() }">
                   <DropdownMenuGroup>
                     <Tooltip><TooltipTrigger as-child><DropdownMenuItem aria-label="Reset to saved plan" text-value="Reset to saved plan" :disabled="saving || creatingProfile || !!loadError" @select="reloadOpen = true"><RefreshCw :size="16" /></DropdownMenuItem></TooltipTrigger><TooltipContent side="left">Reset to saved plan</TooltipContent></Tooltip>
-                    <Tooltip><TooltipTrigger as-child><DropdownMenuItem aria-label="Save as a new profile" text-value="Save as a new profile" :disabled="saving || creatingProfile || !!loadError || !forecast.result" @select="openProfileDialog('copy')"><BookmarkPlus :size="16" /></DropdownMenuItem></TooltipTrigger><TooltipContent side="left">Save as a new profile</TooltipContent></Tooltip>
+                    <Tooltip><TooltipTrigger as-child><DropdownMenuItem aria-label="Duplicate profile" text-value="Duplicate profile" :disabled="saving || creatingProfile || !!loadError || !forecast.result" @select="openProfileDialog('copy')"><Copy :size="16" /></DropdownMenuItem></TooltipTrigger><TooltipContent side="left">Duplicate profile</TooltipContent></Tooltip>
                     <Tooltip><TooltipTrigger as-child><DropdownMenuItem aria-label="Clear all" text-value="Clear all" :disabled="saving || creatingProfile || !!loadError" @select="clearOpen = true"><Trash2 :size="16" /></DropdownMenuItem></TooltipTrigger><TooltipContent side="left">Clear all</TooltipContent></Tooltip>
                     <Tooltip><TooltipTrigger as-child><DropdownMenuItem aria-label="New profile" text-value="New profile" :disabled="saving || creatingProfile || !!loadError || !forecast.result" @select="openProfileDialog('new')"><Plus :size="16" /></DropdownMenuItem></TooltipTrigger><TooltipContent side="left">New profile</TooltipContent></Tooltip>
                     <Tooltip><TooltipTrigger as-child><DropdownMenuItem aria-label="Manage profiles" text-value="Manage profiles" @select="() => navigateTo('/profiles')"><Layers :size="16" /></DropdownMenuItem></TooltipTrigger><TooltipContent side="left">Manage profiles</TooltipContent></Tooltip>
@@ -310,12 +310,12 @@ if (!guest) {
       <FinancialEntryDialog v-model:open="editorOpen" :category="activeCategory" :entry="editing" :investments="draft.investments" @save="storeEntry" />
       <Dialog v-model:open="profileDialogOpen">
         <DialogContent class="entry-dialog">
-          <DialogHeader class="entry-dialog-header"><DialogTitle>{{ profileDialogMode === 'new' ? 'New profile' : 'Save this forecast as a profile' }}</DialogTitle><DialogDescription>{{ profileDialogMode === 'new' ? 'Start with an empty plan. Your current profile stays saved.' : 'Create a separate version of the numbers you are viewing now.' }}</DialogDescription></DialogHeader>
+          <DialogHeader class="entry-dialog-header"><DialogTitle>{{ profileDialogMode === 'new' ? 'New profile' : 'Duplicate profile' }}</DialogTitle><DialogDescription>{{ profileDialogMode === 'new' ? 'Start with an empty plan. Your current profile stays saved.' : 'Create a separate copy of the numbers you are viewing now.' }}</DialogDescription></DialogHeader>
           <form class="entry-form" @submit.prevent="addProfile">
             <div class="field entry-name-field"><Label for="profile-name">Profile name</Label><Input id="profile-name" v-model="profileName" :aria-invalid="!!profileError" maxlength="60" required autofocus placeholder="e.g. Early retirement at 55" /><span class="field-hint">Required · {{ profileName.length }}/60</span></div>
             <div class="field"><Label for="profile-description">Description</Label><Input id="profile-description" v-model="profileDescription" maxlength="180" placeholder="Optional" /><span class="field-hint">Optional · {{ profileDescription.length }}/180</span></div>
             <p v-if="profileError" class="form-error" role="alert">{{ profileError }}</p>
-            <DialogFooter><Button type="button" variant="outline" :disabled="creatingProfile" @click="profileDialogOpen = false">Cancel</Button><Button type="submit" :disabled="creatingProfile"><LoaderCircle v-if="creatingProfile" class="spin" data-icon="inline-start" /><Plus v-else-if="profileDialogMode === 'new'" data-icon="inline-start" /><BookmarkPlus v-else data-icon="inline-start" />{{ profileDialogMode === 'new' ? 'Create profile' : 'Save profile' }}</Button></DialogFooter>
+            <DialogFooter><Button type="button" variant="outline" :disabled="creatingProfile" @click="profileDialogOpen = false">Cancel</Button><Button type="submit" :disabled="creatingProfile"><LoaderCircle v-if="creatingProfile" class="spin" data-icon="inline-start" /><Plus v-else-if="profileDialogMode === 'new'" data-icon="inline-start" /><Copy v-else data-icon="inline-start" />{{ profileDialogMode === 'new' ? 'Create profile' : 'Duplicate profile' }}</Button></DialogFooter>
           </form>
         </DialogContent>
       </Dialog>

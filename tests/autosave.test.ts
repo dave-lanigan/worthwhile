@@ -56,7 +56,15 @@ it('does not write on load and debounces edits into one automatic save', async (
 it.each([false, true])('creates a profile with blank=%s without overwriting the original', async (blank) => {
   const state = await useFinancialPlan()
   mount()
-  state.draft.value.startingCash = 100
+  const currentPlan = {
+    ...emptyPlan(),
+    startingCash: 100,
+    incomes: [{ id: 'income', name: 'Salary', amount: 8000, frequency: 'monthly' as const }],
+    investments: [{ id: 'investment', name: 'Index fund', balance: 25000, annualRoi: 7, allocation: 100 }],
+    expenses: [{ id: 'expense', name: 'Rent', amount: 2000, frequency: 'monthly' as const }],
+    liabilities: [{ id: 'liability', name: 'Student loan', balance: 5000, apr: 4, payment: 300 }],
+  }
+  state.draft.value = currentPlan
   await nextTick()
   put.mockImplementation(async (_url, options) => options.method === 'POST'
     ? { id: 'new-profile', name: 'New profile', description: '', plan: options.body.plan, revision: 1 }
@@ -66,9 +74,9 @@ it.each([false, true])('creates a profile with blank=%s without overwriting the 
   await vi.advanceTimersByTimeAsync(1000)
   expect(put).toHaveBeenCalledTimes(2)
   expect(put.mock.calls[0]![0]).toBe('/api/plan')
-  expect(put.mock.calls[0]![1].body.plan.startingCash).toBe(100)
-  expect(put.mock.calls[1]![1].body.plan.startingCash).toBe(blank ? 0 : 100)
-  expect(state.draft.value.startingCash).toBe(blank ? 0 : 100)
+  expect(put.mock.calls[0]![1].body.plan).toEqual(currentPlan)
+  expect(put.mock.calls[1]![1].body.plan).toEqual(blank ? emptyPlan() : currentPlan)
+  expect(state.draft.value).toEqual(blank ? emptyPlan() : currentPlan)
   expect(state.activeProfile.value?.id).toBe('new-profile')
   expect(state.dirty.value).toBe(false)
 })
