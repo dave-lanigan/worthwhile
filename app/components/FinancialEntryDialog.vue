@@ -1,15 +1,17 @@
 <script setup lang="ts">
-import { Check, Plus, X } from 'lucide-vue-next'
 import { cashFlowSchema, investmentAllocation, investmentSchema, liabilitySchema, type CashFlow, type Category, type Investment, type Liability } from '#shared/schemas/financial-plan'
+import { monthlyLoanPayment } from '#shared/utils/loan'
+import { money } from '@/lib/format'
 
 const props = defineProps<{ category: Category; entry?: CashFlow | Investment | Liability; investments: Investment[] }>()
 const open = defineModel<boolean>('open', { default: false })
 const emit = defineEmits<{ save: [entry: CashFlow | Investment | Liability] }>()
 const singular: Record<Category, string> = { incomes: 'income', investments: 'investment', expenses: 'expense', liabilities: 'liability' }
-const form = reactive({ name: '', amount: '0', frequency: 'monthly', balance: '0', annualRoi: '5', allocation: '0', allocationMode: 'percentage', monthlyContribution: '0', apr: '0', payment: '0' })
+const form = reactive({ name: '', amount: '0', frequency: 'monthly', balance: '0', annualRoi: '5', allocation: '0', allocationMode: 'percentage', monthlyContribution: '0', apr: '0', payment: '0', type: 'debt', termYears: '5' })
 const error = ref('')
 const isFlow = computed(() => props.category === 'incomes' || props.category === 'expenses')
 const availableAllocation = computed(() => Math.max(0, 100 - props.investments.filter(item => item.id !== props.entry?.id).reduce((total, item) => total + investmentAllocation(item, props.investments), 0)))
+const loanPayment = computed(() => monthlyLoanPayment(Math.round(Number(form.balance) * 100), Number(form.apr), Number(form.termYears) * 12))
 
 watch(open, (value) => {
   if (!value) return
@@ -26,6 +28,8 @@ watch(open, (value) => {
     monthlyContribution: entry && 'annualRoi' in entry && entry.monthlyContribution !== undefined ? String(entry.monthlyContribution / 100) : '0',
     apr: entry && 'apr' in entry ? String(entry.apr) : '0',
     payment: entry && 'payment' in entry ? String(entry.payment / 100) : '',
+    type: entry && 'type' in entry ? entry.type ?? 'debt' : 'debt',
+    termYears: entry && 'termMonths' in entry && entry.termMonths ? String(entry.termMonths / 12) : '5',
   })
 })
 
@@ -40,7 +44,7 @@ function submit() {
     ? { ...base, amount: Math.round(Number(form.amount) * 100), frequency: form.frequency }
     : props.category === 'investments'
       ? { ...base, balance: Math.round(Number(form.balance) * 100), annualRoi: Number(form.annualRoi), ...(form.allocationMode === 'monthly' ? { monthlyContribution: Math.round(Number(form.monthlyContribution) * 100) } : { allocation: Number(form.allocation) }) }
-      : { ...base, balance: Math.round(Number(form.balance) * 100), apr: Number(form.apr), payment: Math.round(Number(form.payment) * 100) }
+      : { ...base, balance: Math.round(Number(form.balance) * 100), apr: Number(form.apr), payment: form.type === 'loan' ? loanPayment.value : Math.round(Number(form.payment) * 100), ...(form.type === 'loan' ? { type: 'loan' as const, termMonths: Number(form.termYears) * 12 } : {}) }
   const parsed = schema.safeParse(value)
   if (!parsed.success) {
     error.value = parsed.error.issues.map(issue => `${issue.path.join(' ')}: ${issue.message}`).join('. ')
@@ -53,15 +57,11 @@ function submit() {
 
 <template>
   <Dialog v-model:open="open">
-    <DialogContent class="entry-dialog" :show-close-button="false">
+    <DialogContent class="entry-dialog">
       <DialogHeader class="entry-dialog-header">
         <DialogTitle>{{ entry ? 'Edit' : 'Add' }} {{ singular[category] }}</DialogTitle>
         <DialogDescription>{{ category === 'incomes' ? 'Take-home income, after taxes.' : category === 'investments' ? 'Current value and expected effective annual return.' : category === 'liabilities' ? 'Outstanding debt and its scheduled repayment.' : 'Recurring spending, excluding debt payments entered under liabilities.' }}</DialogDescription>
       </DialogHeader>
-      <div class="entry-dialog-actions">
-        <Button type="submit" form="financial-entry-form" variant="outline" size="icon" aria-label="Save changes"><Check :size="19" /></Button>
-        <Button type="button" variant="outline" size="icon" aria-label="Close dialog" @click="open = false"><X :size="19" /></Button>
-      </div>
       <form id="financial-entry-form" class="entry-form" @submit.prevent="submit">
         <div class="field entry-name-field"><Label for="entry-name">Name</Label><Input id="entry-name" v-model="form.name" required maxlength="100" autocomplete="off" :placeholder="category === 'investments' ? 'e.g. Index fund' : category === 'incomes' ? 'e.g. Salary' : category === 'expenses' ? 'e.g. Housing' : 'e.g. Student loan'" /></div>
         <template v-if="isFlow">
@@ -80,12 +80,18 @@ function submit() {
               <TabsContent value="monthly"><div class="field"><Label for="entry-contribution">Monthly contribution (USD)</Label><Input id="entry-contribution" v-model="form.monthlyContribution" type="number" min="0" max="1000000000000" step="0.01" required inputmode="decimal" /></div></TabsContent>
             </Tabs>
           </template>
-          <div v-else class="form-columns">
-            <div class="field"><Label for="entry-apr">Interest APR (%)</Label><Input id="entry-apr" v-model="form.apr" type="number" min="0" max="1000" step="0.01" required inputmode="decimal" /></div>
-            <div class="field"><Label for="entry-payment">Monthly payment (USD)</Label><Input id="entry-payment" v-model="form.payment" type="number" min="0" max="1000000000000" step="0.01" required inputmode="decimal" /></div>
-          </div>
+          <template v-else>
+            <div class="field"><Label for="entry-type">Liability type</Label><Select v-model="form.type"><SelectTrigger id="entry-type" class="w-full"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="debt">Other debt</SelectItem><SelectItem value="loan">Loan</SelectItem></SelectContent></Select></div>
+            <div class="form-columns">
+              <div class="field"><Label for="entry-apr">Interest APR (%)</Label><Input id="entry-apr" v-model="form.apr" type="number" min="0" max="1000" step="0.01" required inputmode="decimal" /></div>
+              <div v-if="form.type === 'loan'" class="field"><Label for="entry-term">Loan duration (years)</Label><Input id="entry-term" v-model="form.termYears" type="number" min="0.08333333333333333" max="40" step="any" required inputmode="decimal" /></div>
+              <div v-else class="field"><Label for="entry-payment">Monthly payment (USD)</Label><Input id="entry-payment" v-model="form.payment" type="number" min="0" max="1000000000000" step="0.01" required inputmode="decimal" /></div>
+            </div>
+            <p v-if="form.type === 'loan' && Number.isFinite(loanPayment)" class="muted" role="status">Calculated monthly payment: {{ money(loanPayment, true) }}</p>
+          </template>
         </template>
         <p v-if="error" class="form-error" role="alert">{{ error }}</p>
+        <DialogFooter><Button type="button" variant="outline" @click="open = false">Cancel</Button><Button type="submit">{{ entry ? 'Apply changes' : `Add ${singular[category]}` }}</Button></DialogFooter>
       </form>
     </DialogContent>
   </Dialog>
