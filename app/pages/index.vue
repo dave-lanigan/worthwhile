@@ -59,7 +59,6 @@ const categories = [
   { key: 'investments' as const, label: 'Invest', singular: 'investment', icon: TrendingUp },
   { key: 'expenses' as const, label: 'Expenses', singular: 'expense', icon: ArrowUpRight },
   { key: 'liabilities' as const, label: 'Debt', singular: 'liability', icon: Landmark },
-  { key: 'realEstate' as const, label: 'Property', singular: 'property', icon: House },
 ]
 const categoryPresets = {
   salary: Briefcase,
@@ -68,7 +67,8 @@ const categoryPresets = {
   'executive incentive': Gift,
 }
 const currentCategory = computed(() => categories.find(category => category.key === activeCategory.value)!)
-const entries = computed(() => draft.value[activeCategory.value])
+const entries = computed<(CashFlow | Investment | Liability | RealEstate)[]>(() => activeCategory.value === 'investments' ? [...draft.value.investments, ...draft.value.realEstate] : draft.value[activeCategory.value])
+const entryCount = (category: Category) => draft.value[category].length + (category === 'investments' ? draft.value.realEstate.length : 0)
 const first = computed(() => forecast.value.result?.points[0])
 const selected = computed(() => forecast.value.result?.points[Math.min(selectedMonth.value, draft.value.years * 12)] ?? first.value)
 function comparisonDate(month: number): Date {
@@ -97,9 +97,8 @@ const monthlyPayments = computed(() => forecast.value.result?.points[1]?.payment
 const monthlySurplus = computed(() => (forecast.value.result?.income ?? 0) - (forecast.value.result?.expenses ?? 0) - monthlyPayments.value)
 const totalInvested = computed(() => draft.value.investments.reduce((total, item) => total + item.balance, 0))
 const totalDebt = computed(() => draft.value.liabilities.reduce((total, item) => total + item.balance, 0))
-const totalPropertyValue = computed(() => draft.value.realEstate.reduce((total, item) => total + item.value, 0))
 const totalPropertyEquity = computed(() => draft.value.realEstate.reduce((total, item) => total + propertyEquity(item), 0))
-const categoryTotals = computed(() => ({ incomes: forecast.value.result?.income ?? 0, investments: totalInvested.value, expenses: forecast.value.result?.expenses ?? 0, liabilities: totalDebt.value, realEstate: totalPropertyEquity.value }))
+const categoryTotals = computed(() => ({ incomes: forecast.value.result?.income ?? 0, investments: totalInvested.value + totalPropertyEquity.value, expenses: forecast.value.result?.expenses ?? 0, liabilities: totalDebt.value }))
 const summaryMetrics = computed(() => {
   if (activeCategory.value === 'incomes') return {
     leftLabel: 'Total monthly inflow',
@@ -113,17 +112,17 @@ const summaryMetrics = computed(() => {
     rightLabel: 'Annualized run-rate',
     rightValue: draft.value.expenses.reduce((total, expense) => total + annualAmount(expense), 0),
   }
+  if (activeCategory.value === 'investments' && draft.value.realEstate.length) return {
+    leftLabel: 'Current invested',
+    leftValue: totalInvested.value,
+    rightLabel: 'Property equity after loans',
+    rightValue: totalPropertyEquity.value,
+  }
   if (activeCategory.value === 'investments') return {
     leftLabel: 'Current invested',
     leftValue: totalInvested.value,
     rightLabel: 'Fixed monthly',
     rightValue: fixedMonthly.value,
-  }
-  if (activeCategory.value === 'realEstate') return {
-    leftLabel: 'Property value',
-    leftValue: totalPropertyValue.value,
-    rightLabel: 'Equity after loans',
-    rightValue: totalPropertyEquity.value,
   }
   return {
     leftLabel: 'Current debt',
@@ -156,6 +155,7 @@ function frequencyLabel(entry: CashFlow) {
 }
 
 function entryIcon(entry: CashFlow | Investment | Liability | RealEstate) {
+  if ('value' in entry) return House
   return categoryPresets[entry.name.trim().toLowerCase() as keyof typeof categoryPresets] ?? currentCategory.value.icon
 }
 
@@ -195,8 +195,8 @@ function edit(entry?: CashFlow | Investment | Liability | RealEstate) {
 }
 const editingIncome = computed(() => editing.value && 'frequency' in editing.value ? editing.value : undefined)
 function storeEntry(entry: CashFlow | Investment | Liability | RealEstate) {
-  if (activeCategory.value === 'investments') preserveAllocations()
-  const items = draft.value[activeCategory.value] as (CashFlow | Investment | Liability | RealEstate)[]
+  const items = ('value' in entry ? draft.value.realEstate : draft.value[activeCategory.value]) as (CashFlow | Investment | Liability | RealEstate)[]
+  if (activeCategory.value === 'investments' && !('value' in entry)) preserveAllocations()
   const index = items.findIndex(item => item.id === entry.id)
   if (index < 0) items.push(entry)
   else items[index] = entry
@@ -206,8 +206,9 @@ function confirmDelete(entry: CashFlow | Investment | Liability | RealEstate) {
   deleteOpen.value = true
 }
 function removeEntry() {
-  if (activeCategory.value === 'investments') preserveAllocations()
-  const items = draft.value[activeCategory.value]
+  const property = !!deleting.value && 'value' in deleting.value
+  if (activeCategory.value === 'investments' && !property) preserveAllocations()
+  const items = (property ? draft.value.realEstate : draft.value[activeCategory.value]) as (CashFlow | Investment | Liability | RealEstate)[]
   const index = items.findIndex(item => item.id === deleting.value?.id)
   if (index >= 0) items.splice(index, 1)
 }
@@ -385,7 +386,7 @@ if (!guest) {
               </CardContent>
             </Card>
             <Tabs v-model="activeCategory" class="financial-tabs">
-              <TabsList class="category-rail" aria-label="Financial categories"><TabsTrigger v-for="category in categories" :key="category.key" :value="category.key" class="category-rail-item"><span>{{ category.label }}</span><span class="entry-count">{{ draft[category.key].length }}</span></TabsTrigger></TabsList>
+              <TabsList class="category-rail" aria-label="Financial categories"><TabsTrigger v-for="category in categories" :key="category.key" :value="category.key" class="category-rail-item"><span>{{ category.label }}</span><span class="entry-count">{{ entryCount(category.key) }}</span></TabsTrigger></TabsList>
               <Card class="ledger-summary-card bg-card">
                 <CardContent class="flex flex-col p-4">
                   <div class="flex justify-between gap-6">
@@ -405,7 +406,7 @@ if (!guest) {
                   </div>
                 </CardContent>
               </Card>
-              <div class="ledger-toolbar"><div><h3>{{ currentCategory.label }}</h3><span class="muted">{{ activeCategory === 'incomes' || activeCategory === 'expenses' ? 'Monthly total' : activeCategory === 'realEstate' ? 'Current equity' : 'Current balance' }}: {{ money(categoryTotals[activeCategory]) }}</span><span v-if="activeCategory === 'investments'" class="muted">{{ fixedMonthly ? `${money(fixedMonthly, true)} / month fixed; ` : '' }}{{ cashAllocation.toFixed(2) }}% of {{ fixedMonthly ? 'remainder' : 'surplus' }} stays in cash</span></div>
+              <div class="ledger-toolbar"><div><h3>{{ currentCategory.label }}</h3><span class="muted">{{ activeCategory === 'incomes' || activeCategory === 'expenses' ? 'Monthly total' : 'Current balance' }}: {{ money(categoryTotals[activeCategory]) }}</span><span v-if="activeCategory === 'investments'" class="muted">{{ fixedMonthly ? `${money(fixedMonthly, true)} / month fixed; ` : '' }}{{ cashAllocation.toFixed(2) }}% of {{ fixedMonthly ? 'remainder' : 'surplus' }} stays in cash</span></div>
                 <IconButton variant="default" :label="`Add ${currentCategory.singular}`" @click="edit()"><Plus :size="18" /></IconButton>
               </div>
               <div v-if="entries.length" class="ledger-list" role="list" :aria-label="`${currentCategory.label} entries`">

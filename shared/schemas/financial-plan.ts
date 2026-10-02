@@ -43,7 +43,7 @@ export const savedPlanProfileSchema = planProfileSchema.extend({ plan: financial
 export const savePlanProfileSchema = z.object({ plan: financialPlanSchema, revision: z.number().int().nonnegative() })
 export type PlanProfile = z.infer<typeof planProfileSchema>
 export type SavedPlanProfile = z.infer<typeof savedPlanProfileSchema>
-export type Category = 'incomes' | 'investments' | 'expenses' | 'liabilities' | 'realEstate'
+export type Category = 'incomes' | 'investments' | 'expenses' | 'liabilities'
 
 export const taxFilingStatusSchema = z.enum(['single', 'married-jointly', 'married-separately', 'head-of-household'])
 const birthDateSchema = z.union([z.string().regex(/^\d{4}-\d{2}-\d{2}$/), z.literal('')])

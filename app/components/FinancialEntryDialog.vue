@@ -6,11 +6,13 @@ import { money } from '@/lib/format'
 const props = defineProps<{ category: Category; entry?: CashFlow | Investment | Liability | RealEstate; investments: Investment[] }>()
 const open = defineModel<boolean>('open', { default: false })
 const emit = defineEmits<{ save: [entry: CashFlow | Investment | Liability | RealEstate] }>()
-const singular: Record<Category, string> = { incomes: 'income', investments: 'investment', expenses: 'expense', liabilities: 'liability', realEstate: 'property' }
-const form = reactive({ name: '', amount: '0', frequency: 'monthly', balance: '0', annualRoi: '5', allocation: '0', allocationMode: 'percentage', monthlyContribution: '0', apr: '0', payment: '0', type: 'debt', termYears: '5', propertyValue: '0', annualAppreciation: '3', loanBalance: '0', loanApr: '6', loanTermYears: '30' })
+const singular: Record<Category, string> = { incomes: 'income', investments: 'investment', expenses: 'expense', liabilities: 'liability' }
+const form = reactive({ name: '', amount: '0', frequency: 'monthly', balance: '0', annualRoi: '5', allocation: '0', allocationMode: 'percentage', monthlyContribution: '0', apr: '0', payment: '0', type: 'debt', termYears: '5', propertyValue: '0', annualAppreciation: '3', loanBalance: '0', loanApr: '6', loanTermYears: '30', assetType: 'investment' })
 const error = ref('')
 const viewport = ref<Record<string, string>>({})
 const isFlow = computed(() => props.category === 'incomes' || props.category === 'expenses')
+const isProperty = computed(() => props.category === 'investments' && form.assetType === 'property')
+const entryLabel = computed(() => isProperty.value ? 'property' : singular[props.category])
 const availableAllocation = computed(() => Math.max(0, 100 - props.investments.filter(item => item.id !== props.entry?.id).reduce((total, item) => total + investmentAllocation(item, props.investments), 0)))
 const loanPayment = computed(() => monthlyLoanPayment(Math.round(Number(form.balance) * 100), Number(form.apr), Number(form.termYears) * 12))
 const propertyLoanCents = computed(() => Math.round(Number(form.loanBalance) * 100) || 0)
@@ -39,6 +41,7 @@ watch(open, (value) => {
     payment: entry && 'payment' in entry ? String(entry.payment / 100) : '',
     type: entry && 'type' in entry ? entry.type ?? 'debt' : 'debt',
     termYears: entry && 'termMonths' in entry && entry.termMonths ? String(entry.termMonths / 12) : '5',
+    assetType: entry && 'value' in entry ? 'property' : 'investment',
     propertyValue: entry && 'value' in entry ? String(entry.value / 100) : '',
     annualAppreciation: entry && 'annualAppreciation' in entry ? String(entry.annualAppreciation) : '3',
     loanBalance: entry && 'value' in entry && entry.loan ? String(entry.loan.balance / 100) : '0',
@@ -74,12 +77,12 @@ onBeforeUnmount(() => {
 })
 
 function submit() {
-  if (props.category === 'investments' && form.allocationMode === 'percentage' && Number(form.allocation) > availableAllocation.value + 1e-8) {
+  if (props.category === 'investments' && !isProperty.value && form.allocationMode === 'percentage' && Number(form.allocation) > availableAllocation.value + 1e-8) {
     error.value = `Allocations cannot exceed 100%. Up to ${availableAllocation.value.toFixed(2)}% is available for this investment.`
     return
   }
   const base = { id: props.entry?.id ?? crypto.randomUUID(), name: form.name }
-  if (props.category === 'realEstate') {
+  if (isProperty.value) {
     const loan = propertyLoanCents.value > 0 ? { balance: propertyLoanCents.value, apr: Number(form.loanApr), termMonths: Math.round(Number(form.loanTermYears) * 12), payment: propertyLoanPayment.value } : undefined
     const parsed = realEstateSchema.safeParse({ ...base, value: Math.round(Number(form.propertyValue) * 100), annualAppreciation: Number(form.annualAppreciation), ...(loan ? { loan } : {}) })
     if (!parsed.success) {
@@ -110,11 +113,12 @@ function submit() {
   <Drawer v-model:open="open" :should-scale-background="false">
     <DrawerContent class="income-drawer financial-entry-drawer" :style="viewport" aria-describedby="financial-entry-description">
       <DrawerHeader class="income-drawer-header">
-        <DrawerTitle>{{ entry ? 'Edit' : 'Add' }} {{ singular[category] }}</DrawerTitle>
-        <DrawerDescription id="financial-entry-description">{{ category === 'incomes' ? 'Take-home income, after taxes.' : category === 'investments' ? 'Current value and expected effective annual return.' : category === 'liabilities' ? 'Outstanding debt and its scheduled repayment.' : category === 'realEstate' ? 'Market value and any loan secured against it. Equity grows as the loan is repaid.' : 'Recurring spending, excluding debt payments entered under liabilities.' }}</DrawerDescription>
+        <DrawerTitle>{{ entry ? 'Edit' : 'Add' }} {{ entryLabel }}</DrawerTitle>
+        <DrawerDescription id="financial-entry-description">{{ category === 'incomes' ? 'Take-home income, after taxes.' : isProperty ? 'Market value and any loan secured against it. Equity grows as the loan is repaid.' : category === 'investments' ? 'Current value and expected effective annual return.' : category === 'liabilities' ? 'Outstanding debt and its scheduled repayment.' : 'Recurring spending, excluding debt payments entered under liabilities.' }}</DrawerDescription>
       </DrawerHeader>
       <form id="financial-entry-form" class="entry-form income-drawer-body" @submit.prevent="submit">
-        <div class="field"><Label for="entry-name">Name</Label><Input id="entry-name" v-model="form.name" required maxlength="100" autocomplete="off" :placeholder="category === 'investments' ? 'e.g. Index fund' : category === 'incomes' ? 'e.g. Salary' : category === 'expenses' ? 'e.g. Housing' : category === 'realEstate' ? 'e.g. Family home' : 'e.g. Student loan'" /></div>
+        <div class="field"><Label for="entry-name">Name</Label><Input id="entry-name" v-model="form.name" required maxlength="100" autocomplete="off" :placeholder="isProperty ? 'e.g. Family home' : category === 'investments' ? 'e.g. Index fund' : category === 'incomes' ? 'e.g. Salary' : category === 'expenses' ? 'e.g. Housing' : 'e.g. Student loan'" /></div>
+        <div v-if="category === 'investments'" class="field"><Label for="entry-asset-type">Asset type</Label><Select v-model="form.assetType" :disabled="!!entry"><SelectTrigger id="entry-asset-type" class="w-full"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="investment">Investment account</SelectItem><SelectItem value="property">Real estate</SelectItem></SelectContent></Select></div>
         <template v-if="isFlow">
           <div class="field">
             <Label for="entry-amount">Amount (USD)</Label>
@@ -127,7 +131,7 @@ function submit() {
             </ToggleGroup>
           </div>
         </template>
-        <template v-else-if="category === 'realEstate'">
+        <template v-else-if="isProperty">
           <fieldset class="entry-fieldset">
             <legend>Property</legend>
             <div class="form-columns">
@@ -171,7 +175,7 @@ function submit() {
         <p v-if="error" class="form-error" role="alert">{{ error }}</p>
       </form>
       <DrawerFooter class="income-drawer-footer">
-        <Button type="submit" form="financial-entry-form" class="w-full">{{ entry ? 'Apply changes' : `Add ${singular[category]}` }}</Button>
+        <Button type="submit" form="financial-entry-form" class="w-full">{{ entry ? 'Apply changes' : `Add ${entryLabel}` }}</Button>
         <DrawerClose as-child><Button type="button" variant="outline" class="w-full">Cancel</Button></DrawerClose>
       </DrawerFooter>
     </DrawerContent>
