@@ -3,6 +3,7 @@ import { ArrowDownLeft, ArrowUpRight, Award, Briefcase, ChartNoAxesCombined, Che
 import { DropdownMenuRoot, DropdownMenuTrigger, DropdownMenuPortal, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem } from 'reka-ui'
 import { emptyPlan, investmentAllocation, type CashFlow, type Category, type Investment, type Liability } from '#shared/schemas/financial-plan'
 import { annualAmount, simulateNetWorth } from '#shared/utils/projection'
+import { estimateTaxInputs, stateFromAddress, type TaxInputs } from '#shared/utils/taxes'
 import { ageGroupNetWorthPercentile, netWorthPercentile, percentileLabel, WEALTH_AGE_BANDS } from '#shared/utils/wealth-percentile'
 import { money, monthLabel } from '@/lib/format'
 import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card'
@@ -30,6 +31,12 @@ const start = useState('forecast-start', () => new Date().toISOString().slice(0,
 const activeCategory = ref<Category>('incomes')
 const cashEditing = ref(false)
 const editorOpen = ref(false)
+const taxDialogOpen = ref(false)
+const taxInputs = reactive<TaxInputs>({ status: 'single', state: '', deductions: '0', exemptions: '0' })
+watch(userProfile, profile => {
+  taxInputs.status = profile.taxFilingStatus
+  taxInputs.state = stateFromAddress(profile.address) ?? ''
+}, { immediate: true })
 const editing = ref<CashFlow | Investment | Liability>()
 const deleting = ref<CashFlow | Investment | Liability>()
 const deleteOpen = ref(false)
@@ -77,6 +84,7 @@ const selectedAgeComparison = computed(() => ageComparison(selected.value?.netWo
 const compactPercentile = (label: string) => label.replace('Approx. ', '')
 const compactMoney = (amount: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', notation: 'compact', maximumFractionDigits: 1 }).format(amount / 100)
 const yearlyIncome = computed(() => draft.value.incomes.reduce((total, income) => total + annualAmount(income), 0))
+const taxEstimate = computed(() => estimateTaxInputs(yearlyIncome.value, taxInputs))
 const selectedPeriod = computed(() => {
   const month = selected.value?.month ?? 0
   if (!month) return 'Today'
@@ -140,13 +148,13 @@ function entryIcon(entry: CashFlow | Investment | Liability) {
 
 function entryBadge(entry: CashFlow | Investment | Liability) {
   if ('frequency' in entry) return frequencyLabel(entry)
-  return 'annualRoi' in entry ? 'Investment' : 'Debt'
+  return 'annualRoi' in entry ? 'Investment' : entry.type === 'loan' ? 'Loan' : 'Debt'
 }
 
 function entryDetail(entry: CashFlow | Investment | Liability) {
   if ('frequency' in entry) return `${money(annualAmount(entry), true)} annualized`
   if ('annualRoi' in entry) return `${entry.annualRoi}% annual ROI · ${allocationLabel(entry)}`
-  return `${entry.apr}% APR · ${money(entry.payment, true)} / month`
+  return `${entry.apr}% APR · ${money(entry.payment, true)} / month${entry.termMonths ? ` · ${entry.termMonths / 12}-year term` : ''}`
 }
 
 function entryAmount(entry: CashFlow | Investment | Liability) {
@@ -362,18 +370,27 @@ if (!guest) {
             <Tabs v-model="activeCategory" class="financial-tabs">
               <TabsList class="category-rail" aria-label="Financial categories"><TabsTrigger v-for="category in categories" :key="category.key" :value="category.key" class="category-rail-item"><span>{{ category.label }}</span><span class="entry-count">{{ draft[category.key].length }}</span></TabsTrigger></TabsList>
               <Card class="ledger-summary-card bg-card">
-                <CardContent class="flex flex-row justify-between p-4 gap-6">
-                  <div class="min-w-0">
-                    <span class="block text-[10px] font-semibold uppercase text-muted-foreground leading-none">{{ summaryMetrics.leftLabel }}</span>
-                    <strong class="mt-1 block text-green-700 font-bold text-lg tabular-nums leading-tight">{{ money(summaryMetrics.leftValue) }}</strong>
+                <CardContent class="flex flex-col p-4">
+                  <div class="flex justify-between gap-6">
+                    <div class="min-w-0">
+                      <span class="block text-[10px] font-semibold uppercase text-muted-foreground leading-none">{{ summaryMetrics.leftLabel }}</span>
+                      <strong class="mt-1 block text-green-700 font-bold text-lg tabular-nums leading-tight">{{ money(summaryMetrics.leftValue) }}</strong>
+                    </div>
+                    <div class="min-w-0 text-right">
+                      <span class="block text-[10px] font-semibold uppercase text-muted-foreground leading-none">{{ summaryMetrics.rightLabel }}</span>
+                      <strong class="mt-1 block text-green-700 font-bold text-lg tabular-nums leading-tight" :data-testid="activeCategory === 'incomes' ? 'yearly-income' : undefined">{{ money(summaryMetrics.rightValue, true) }}</strong>
+                    </div>
                   </div>
-                  <div class="min-w-0 text-right">
-                    <span class="block text-[10px] font-semibold uppercase text-muted-foreground leading-none">{{ summaryMetrics.rightLabel }}</span>
-                    <strong class="mt-1 block text-green-700 font-bold text-lg tabular-nums leading-tight" :data-testid="activeCategory === 'incomes' ? 'yearly-income' : undefined">{{ money(summaryMetrics.rightValue, true) }}</strong>
+                  <div v-if="activeCategory === 'incomes'" class="income-tax-summary">
+                    <span class="income-tax-label">Estimated annual tax <small>Estimate only · income is entered after tax</small></span>
+                    <strong class="tabular-nums">{{ taxEstimate ? money(taxEstimate.total, true) : '—' }}</strong>
+                    <Button type="button" variant="ghost" class="income-tax-details" @click="taxDialogOpen = true">Tax details<ChevronRight :size="16" aria-hidden="true" /></Button>
                   </div>
                 </CardContent>
               </Card>
-              <div class="ledger-toolbar"><div><h3>{{ currentCategory.label }}</h3><span class="muted">{{ activeCategory === 'incomes' || activeCategory === 'expenses' ? 'Monthly total' : 'Current balance' }}: {{ money(categoryTotals[activeCategory]) }}</span><span v-if="activeCategory === 'investments'" class="muted">{{ fixedMonthly ? `${money(fixedMonthly, true)} / month fixed; ` : '' }}{{ cashAllocation.toFixed(2) }}% of {{ fixedMonthly ? 'remainder' : 'surplus' }} stays in cash</span></div><IconButton variant="default" :label="`Add ${currentCategory.singular}`" @click="edit()"><Plus :size="18" /></IconButton></div>
+              <div class="ledger-toolbar"><div><h3>{{ currentCategory.label }}</h3><span class="muted">{{ activeCategory === 'incomes' || activeCategory === 'expenses' ? 'Monthly total' : 'Current balance' }}: {{ money(categoryTotals[activeCategory]) }}</span><span v-if="activeCategory === 'investments'" class="muted">{{ fixedMonthly ? `${money(fixedMonthly, true)} / month fixed; ` : '' }}{{ cashAllocation.toFixed(2) }}% of {{ fixedMonthly ? 'remainder' : 'surplus' }} stays in cash</span></div>
+                <IconButton variant="default" :label="`Add ${currentCategory.singular}`" @click="edit()"><Plus :size="18" /></IconButton>
+              </div>
               <div v-if="entries.length" class="ledger-list" role="list" :aria-label="`${currentCategory.label} entries`">
                 <Card v-for="entry in entries" :key="entry.id" class="ledger-entry-card bg-card py-0 gap-0" role="listitem">
                   <CardContent class="flex flex-row items-center justify-between p-3 gap-3">
@@ -401,6 +418,7 @@ if (!guest) {
       </main>
       <IncomeEntryDrawer v-if="activeCategory === 'incomes'" v-model:open="editorOpen" :entry="editingIncome" @save="storeEntry" />
       <FinancialEntryDialog v-else v-model:open="editorOpen" :category="activeCategory" :entry="editing" :investments="draft.investments" @save="storeEntry" />
+      <TaxEstimateDialog v-model:open="taxDialogOpen" v-model:inputs="taxInputs" :result="taxEstimate" />
       <Dialog v-model:open="profileDialogOpen">
         <DialogContent class="entry-dialog">
           <DialogHeader class="entry-dialog-header"><DialogTitle>{{ profileDialogMode === 'new' ? 'New profile' : 'Duplicate profile' }}</DialogTitle><DialogDescription>{{ profileDialogMode === 'new' ? 'Start with an empty plan. Your current profile stays saved.' : 'Create a separate copy of the numbers you are viewing now.' }}</DialogDescription></DialogHeader>
