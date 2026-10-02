@@ -4,6 +4,8 @@ export type ProjectionPoint = {
   month: number
   cash: number
   invested: number
+  property: number
+  propertyDebt: number
   assets: number
   debt: number
   netWorth: number
@@ -11,6 +13,8 @@ export type ProjectionPoint = {
   contributions: number
   investmentBalances: Record<string, number>
   debtBalances: Record<string, number>
+  propertyValues: Record<string, number>
+  propertyLoanBalances: Record<string, number>
 }
 
 export function monthlyAmount(flow: CashFlow): number {
@@ -52,6 +56,10 @@ export function projectNetWorth(input: FinancialPlan) {
   const percentageShares = investments.filter(item => item.monthlyContribution === undefined).map(item => ({ id: item.id, weight: investmentAllocation(item, investments) }))
   const investmentBalances = Object.fromEntries(investments.map(item => [item.id, item.balance]))
   const debtBalances = Object.fromEntries(plan.liabilities.map(item => [item.id, item.balance]))
+  const properties = plan.realEstate
+  const propertyValues = Object.fromEntries(properties.map(item => [item.id, item.value]))
+  const propertyLoanBalances = Object.fromEntries(properties.filter(item => item.loan).map(item => [item.id, item.loan!.balance]))
+  const appreciation = Object.fromEntries(properties.map(item => [item.id, (1 + item.annualAppreciation / 100) ** (1 / 12)]))
   const factors = Object.fromEntries(investments.map(item => [item.id, (1 + item.annualRoi / 100) ** (1 / 12)]))
   const growingDebts = new Set<string>()
   const points: ProjectionPoint[] = []
@@ -68,6 +76,16 @@ export function projectNetWorth(input: FinancialPlan) {
         const interest = checked(Math.round(opening * item.apr / 100 / 12))
         const payment = Math.min(item.payment, checked(opening + interest))
         debtBalances[item.id] = checked(opening + interest - payment)
+        payments = checked(payments + payment)
+        if (interest > payment) growingDebts.add(item.id)
+      }
+      for (const item of properties) {
+        propertyValues[item.id] = checked(Math.round(propertyValues[item.id]! * appreciation[item.id]!))
+        if (!item.loan) continue
+        const opening = propertyLoanBalances[item.id]!
+        const interest = checked(Math.round(opening * item.loan.apr / 100 / 12))
+        const payment = Math.min(item.loan.payment, checked(opening + interest))
+        propertyLoanBalances[item.id] = checked(opening + interest - payment)
         payments = checked(payments + payment)
         if (interest > payment) growingDebts.add(item.id)
       }
@@ -89,9 +107,11 @@ export function projectNetWorth(input: FinancialPlan) {
       }
     }
     const invested = checked(Object.values(investmentBalances).reduce((total, balance) => total + balance, 0))
-    const debt = checked(Object.values(debtBalances).reduce((total, balance) => total + balance, 0))
-    const assets = checked(cash + invested)
-    points.push({ month, cash, invested, assets, debt, netWorth: checked(assets - debt), payments, contributions, investmentBalances: { ...investmentBalances }, debtBalances: { ...debtBalances } })
+    const property = checked(Object.values(propertyValues).reduce((total, value) => total + value, 0))
+    const propertyDebt = checked(Object.values(propertyLoanBalances).reduce((total, balance) => total + balance, 0))
+    const debt = checked(Object.values(debtBalances).reduce((total, balance) => total + balance, propertyDebt))
+    const assets = checked(cash + invested + property)
+    points.push({ month, cash, invested, property, propertyDebt, assets, debt, netWorth: checked(assets - debt), payments, contributions, investmentBalances: { ...investmentBalances }, debtBalances: { ...debtBalances }, propertyValues: { ...propertyValues }, propertyLoanBalances: { ...propertyLoanBalances } })
   }
 
   return { points, income, expenses, firstShortfall, growingDebts: [...growingDebts] }
@@ -152,7 +172,7 @@ export function simulateNetWorth(input: FinancialPlan, options: MonteCarloOption
       const point = deterministic.points[month]!
       const factor = Math.exp(monthlyDrift + monthlyVolatility * standardNormal(random))
       invested = checked(Math.round(invested * factor + point.contributions))
-      values[month]![run] = checked(point.cash - point.debt + invested)
+      values[month]![run] = checked(point.cash + point.property - point.debt + invested)
     }
   }
 

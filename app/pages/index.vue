@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ArrowDownLeft, ArrowUpRight, Award, Briefcase, ChartNoAxesCombined, Check, ChevronRight, CircleAlert, Code, Copy, Dices, EllipsisVertical, Gift, Landmark, Layers, LoaderCircle, Pencil, Plus, RefreshCw, Trash2, TrendingUp, UserRound, Wallet } from 'lucide-vue-next'
+import { ArrowDownLeft, ArrowUpRight, Award, Briefcase, ChartNoAxesCombined, Check, ChevronRight, CircleAlert, Code, Copy, Dices, EllipsisVertical, Gift, House, Landmark, Layers, LoaderCircle, Pencil, Plus, RefreshCw, Trash2, TrendingUp, UserRound, Wallet } from 'lucide-vue-next'
 import { DropdownMenuRoot, DropdownMenuTrigger, DropdownMenuPortal, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem } from 'reka-ui'
-import { emptyPlan, investmentAllocation, type CashFlow, type Category, type Investment, type Liability } from '#shared/schemas/financial-plan'
+import { emptyPlan, investmentAllocation, type CashFlow, type Category, type Investment, type Liability, type RealEstate } from '#shared/schemas/financial-plan'
 import { annualAmount, simulateNetWorth } from '#shared/utils/projection'
 import { estimateTaxInputs, stateFromAddress, type TaxInputs } from '#shared/utils/taxes'
 import { ageGroupNetWorthPercentile, netWorthPercentile, percentileLabel, WEALTH_AGE_BANDS } from '#shared/utils/wealth-percentile'
@@ -37,8 +37,8 @@ watch(userProfile, profile => {
   taxInputs.status = profile.taxFilingStatus
   taxInputs.state = stateFromAddress(profile.address) ?? ''
 }, { immediate: true })
-const editing = ref<CashFlow | Investment | Liability>()
-const deleting = ref<CashFlow | Investment | Liability>()
+const editing = ref<CashFlow | Investment | Liability | RealEstate>()
+const deleting = ref<CashFlow | Investment | Liability | RealEstate>()
 const deleteOpen = ref(false)
 const reloadOpen = ref(false)
 const clearOpen = ref(false)
@@ -59,6 +59,7 @@ const categories = [
   { key: 'investments' as const, label: 'Invest', singular: 'investment', icon: TrendingUp },
   { key: 'expenses' as const, label: 'Expenses', singular: 'expense', icon: ArrowUpRight },
   { key: 'liabilities' as const, label: 'Debt', singular: 'liability', icon: Landmark },
+  { key: 'realEstate' as const, label: 'Property', singular: 'property', icon: House },
 ]
 const categoryPresets = {
   salary: Briefcase,
@@ -96,7 +97,9 @@ const monthlyPayments = computed(() => forecast.value.result?.points[1]?.payment
 const monthlySurplus = computed(() => (forecast.value.result?.income ?? 0) - (forecast.value.result?.expenses ?? 0) - monthlyPayments.value)
 const totalInvested = computed(() => draft.value.investments.reduce((total, item) => total + item.balance, 0))
 const totalDebt = computed(() => draft.value.liabilities.reduce((total, item) => total + item.balance, 0))
-const categoryTotals = computed(() => ({ incomes: forecast.value.result?.income ?? 0, investments: totalInvested.value, expenses: forecast.value.result?.expenses ?? 0, liabilities: totalDebt.value }))
+const totalPropertyValue = computed(() => draft.value.realEstate.reduce((total, item) => total + item.value, 0))
+const totalPropertyEquity = computed(() => draft.value.realEstate.reduce((total, item) => total + propertyEquity(item), 0))
+const categoryTotals = computed(() => ({ incomes: forecast.value.result?.income ?? 0, investments: totalInvested.value, expenses: forecast.value.result?.expenses ?? 0, liabilities: totalDebt.value, realEstate: totalPropertyEquity.value }))
 const summaryMetrics = computed(() => {
   if (activeCategory.value === 'incomes') return {
     leftLabel: 'Total monthly inflow',
@@ -115,6 +118,12 @@ const summaryMetrics = computed(() => {
     leftValue: totalInvested.value,
     rightLabel: 'Fixed monthly',
     rightValue: fixedMonthly.value,
+  }
+  if (activeCategory.value === 'realEstate') return {
+    leftLabel: 'Property value',
+    leftValue: totalPropertyValue.value,
+    rightLabel: 'Equity after loans',
+    rightValue: totalPropertyEquity.value,
   }
   return {
     leftLabel: 'Current debt',
@@ -138,30 +147,38 @@ function allocationLabel(investment: Investment) {
     : `${investmentAllocation(investment, draft.value.investments).toLocaleString('en-US', { maximumFractionDigits: 2 })}%${fixedMonthly.value ? ' of remainder' : ''}`
 }
 
+function propertyEquity(property: RealEstate) {
+  return property.value - (property.loan?.balance ?? 0)
+}
+
 function frequencyLabel(entry: CashFlow) {
   return entry.frequency === 'annual' ? 'Annual' : entry.frequency === 'biweekly' ? 'Bi-weekly' : 'Monthly'
 }
 
-function entryIcon(entry: CashFlow | Investment | Liability) {
+function entryIcon(entry: CashFlow | Investment | Liability | RealEstate) {
   return categoryPresets[entry.name.trim().toLowerCase() as keyof typeof categoryPresets] ?? currentCategory.value.icon
 }
 
-function entryBadge(entry: CashFlow | Investment | Liability) {
+function entryBadge(entry: CashFlow | Investment | Liability | RealEstate) {
   if ('frequency' in entry) return frequencyLabel(entry)
+  if ('value' in entry) return entry.loan ? 'Mortgaged' : 'Owned'
   return 'annualRoi' in entry ? 'Investment' : entry.type === 'loan' ? 'Loan' : 'Debt'
 }
 
-function entryDetail(entry: CashFlow | Investment | Liability) {
+function entryDetail(entry: CashFlow | Investment | Liability | RealEstate) {
   if ('frequency' in entry) return `${money(annualAmount(entry), true)} annualized`
   if ('annualRoi' in entry) return `${entry.annualRoi}% annual ROI · ${allocationLabel(entry)}`
+  if ('value' in entry) return `${money(entry.value, true)} value · ${entry.annualAppreciation}% / yr${entry.loan ? ` · ${money(entry.loan.balance, true)} loan at ${entry.loan.apr}% · ${money(entry.loan.payment, true)} / month` : ''}`
   return `${entry.apr}% APR · ${money(entry.payment, true)} / month${entry.termMonths ? ` · ${entry.termMonths / 12}-year term` : ''}`
 }
 
-function entryAmount(entry: CashFlow | Investment | Liability) {
+function entryAmount(entry: CashFlow | Investment | Liability | RealEstate) {
+  if ('value' in entry) return money(propertyEquity(entry), true)
   return money('amount' in entry ? entry.amount : entry.balance, true)
 }
 
-function entryAmountLabel(entry: CashFlow | Investment | Liability) {
+function entryAmountLabel(entry: CashFlow | Investment | Liability | RealEstate) {
+  if ('value' in entry) return 'Equity in USD'
   if (!('amount' in entry)) return 'Balance in USD'
   return activeCategory.value === 'incomes' ? 'Take-home in USD' : 'Amount in USD'
 }
@@ -172,19 +189,19 @@ function preserveAllocations() {
   investments.forEach((item, index) => { if (item.monthlyContribution === undefined) item.allocation = allocations[index]! })
 }
 
-function edit(entry?: CashFlow | Investment | Liability) {
+function edit(entry?: CashFlow | Investment | Liability | RealEstate) {
   editing.value = entry
   editorOpen.value = true
 }
 const editingIncome = computed(() => editing.value && 'frequency' in editing.value ? editing.value : undefined)
-function storeEntry(entry: CashFlow | Investment | Liability) {
+function storeEntry(entry: CashFlow | Investment | Liability | RealEstate) {
   if (activeCategory.value === 'investments') preserveAllocations()
-  const items = draft.value[activeCategory.value] as (CashFlow | Investment | Liability)[]
+  const items = draft.value[activeCategory.value] as (CashFlow | Investment | Liability | RealEstate)[]
   const index = items.findIndex(item => item.id === entry.id)
   if (index < 0) items.push(entry)
   else items[index] = entry
 }
-function confirmDelete(entry: CashFlow | Investment | Liability) {
+function confirmDelete(entry: CashFlow | Investment | Liability | RealEstate) {
   deleting.value = entry
   deleteOpen.value = true
 }
@@ -343,13 +360,13 @@ if (!guest) {
             <div v-if="forecast.result" class="chart-shell"><ClientOnly><NetWorthChart :points="forecast.result.points" :start="start" :simulation="simulation?.points" /><template #fallback><div class="chart-placeholder"><LoaderCircle class="spin" :size="20" /><span>Loading forecast</span></div></template></ClientOnly></div>
             <div v-else class="chart-placeholder">Forecast unavailable until the values are valid.</div>
             <div v-if="selected" class="month-breakdown">
-              <div><span>Cash</span><strong>{{ money(selected.cash) }}</strong></div><div><span>Investments</span><strong>{{ money(selected.invested) }}</strong></div><div><span>Liabilities</span><strong>{{ money(selected.debt) }}</strong></div><div class="breakdown-worth"><span>Net worth</span><strong>{{ money(selected.netWorth) }}</strong></div>
+              <div><span>Cash</span><strong>{{ money(selected.cash) }}</strong></div><div><span>Investments</span><strong>{{ money(selected.invested) }}</strong></div><div><span>Property equity</span><strong data-testid="property-equity-projected">{{ money(selected.property - selected.propertyDebt) }}</strong></div><div><span>{{ selected.propertyDebt || draft.realEstate.length ? 'Other liabilities' : 'Liabilities' }}</span><strong>{{ money(selected.debt - selected.propertyDebt) }}</strong></div><div class="breakdown-worth"><span>Net worth</span><strong>{{ money(selected.netWorth) }}</strong></div>
             </div>
             </CardContent>
           </Card>
 
           <div v-if="forecast.result?.firstShortfall" class="feedback warning" role="status"><CircleAlert :size="18" /><p><strong>Cash shortfall from {{ monthLabel(forecast.result.firstShortfall, start) }}.</strong> Negative cash is unfunded; investments are not sold automatically.</p></div>
-          <div v-if="forecast.result?.growingDebts.length" class="feedback warning" role="status"><CircleAlert :size="18" /><p><strong>Payments do not cover interest:</strong> {{ draft.liabilities.filter(item => forecast.result?.growingDebts.includes(item.id)).map(item => item.name).join(', ') }}.</p></div>
+          <div v-if="forecast.result?.growingDebts.length" class="feedback warning" role="status"><CircleAlert :size="18" /><p><strong>Payments do not cover interest:</strong> {{ [...draft.liabilities, ...draft.realEstate].filter(item => forecast.result?.growingDebts.includes(item.id)).map(item => item.name).join(', ') }}.</p></div>
 
           <section class="financial-section" role="region" aria-labelledby="financial-title">
             <h2 id="financial-title" class="sr-only">Your financial picture</h2>
@@ -388,7 +405,7 @@ if (!guest) {
                   </div>
                 </CardContent>
               </Card>
-              <div class="ledger-toolbar"><div><h3>{{ currentCategory.label }}</h3><span class="muted">{{ activeCategory === 'incomes' || activeCategory === 'expenses' ? 'Monthly total' : 'Current balance' }}: {{ money(categoryTotals[activeCategory]) }}</span><span v-if="activeCategory === 'investments'" class="muted">{{ fixedMonthly ? `${money(fixedMonthly, true)} / month fixed; ` : '' }}{{ cashAllocation.toFixed(2) }}% of {{ fixedMonthly ? 'remainder' : 'surplus' }} stays in cash</span></div>
+              <div class="ledger-toolbar"><div><h3>{{ currentCategory.label }}</h3><span class="muted">{{ activeCategory === 'incomes' || activeCategory === 'expenses' ? 'Monthly total' : activeCategory === 'realEstate' ? 'Current equity' : 'Current balance' }}: {{ money(categoryTotals[activeCategory]) }}</span><span v-if="activeCategory === 'investments'" class="muted">{{ fixedMonthly ? `${money(fixedMonthly, true)} / month fixed; ` : '' }}{{ cashAllocation.toFixed(2) }}% of {{ fixedMonthly ? 'remainder' : 'surplus' }} stays in cash</span></div>
                 <IconButton variant="default" :label="`Add ${currentCategory.singular}`" @click="edit()"><Plus :size="18" /></IconButton>
               </div>
               <div v-if="entries.length" class="ledger-list" role="list" :aria-label="`${currentCategory.label} entries`">
