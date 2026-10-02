@@ -1,18 +1,23 @@
 <script setup lang="ts">
-import { cashFlowSchema, investmentAllocation, investmentSchema, liabilitySchema, type CashFlow, type Category, type Investment, type Liability } from '#shared/schemas/financial-plan'
+import { cashFlowSchema, investmentAllocation, investmentSchema, liabilitySchema, realEstateSchema, type CashFlow, type Category, type Investment, type Liability, type RealEstate } from '#shared/schemas/financial-plan'
 import { monthlyLoanPayment } from '#shared/utils/loan'
 import { money } from '@/lib/format'
 
-const props = defineProps<{ category: Category; entry?: CashFlow | Investment | Liability; investments: Investment[] }>()
+const props = defineProps<{ category: Category; entry?: CashFlow | Investment | Liability | RealEstate; investments: Investment[] }>()
 const open = defineModel<boolean>('open', { default: false })
-const emit = defineEmits<{ save: [entry: CashFlow | Investment | Liability] }>()
+const emit = defineEmits<{ save: [entry: CashFlow | Investment | Liability | RealEstate] }>()
 const singular: Record<Category, string> = { incomes: 'income', investments: 'investment', expenses: 'expense', liabilities: 'liability' }
-const form = reactive({ name: '', amount: '0', frequency: 'monthly', balance: '0', annualRoi: '5', allocation: '0', allocationMode: 'percentage', monthlyContribution: '0', apr: '0', payment: '0', type: 'debt', termYears: '5' })
+const form = reactive({ name: '', amount: '0', frequency: 'monthly', balance: '0', annualRoi: '5', allocation: '0', allocationMode: 'percentage', monthlyContribution: '0', apr: '0', payment: '0', type: 'debt', termYears: '5', propertyValue: '0', annualAppreciation: '3', loanBalance: '0', loanApr: '6', loanTermYears: '30', assetType: 'investment' })
 const error = ref('')
 const viewport = ref<Record<string, string>>({})
 const isFlow = computed(() => props.category === 'incomes' || props.category === 'expenses')
+const isProperty = computed(() => props.category === 'investments' && form.assetType === 'property')
+const entryLabel = computed(() => isProperty.value ? 'property' : singular[props.category])
 const availableAllocation = computed(() => Math.max(0, 100 - props.investments.filter(item => item.id !== props.entry?.id).reduce((total, item) => total + investmentAllocation(item, props.investments), 0)))
 const loanPayment = computed(() => monthlyLoanPayment(Math.round(Number(form.balance) * 100), Number(form.apr), Number(form.termYears) * 12))
+const propertyLoanCents = computed(() => Math.round(Number(form.loanBalance) * 100) || 0)
+const propertyLoanPayment = computed(() => monthlyLoanPayment(propertyLoanCents.value, Number(form.loanApr), Math.round(Number(form.loanTermYears) * 12)))
+const propertyEquity = computed(() => (Math.round(Number(form.propertyValue) * 100) || 0) - propertyLoanCents.value)
 const frequencies = [
   { value: 'monthly', label: 'Monthly' },
   { value: 'biweekly', label: 'Bi-weekly' },
@@ -36,6 +41,12 @@ watch(open, (value) => {
     payment: entry && 'payment' in entry ? String(entry.payment / 100) : '',
     type: entry && 'type' in entry ? entry.type ?? 'debt' : 'debt',
     termYears: entry && 'termMonths' in entry && entry.termMonths ? String(entry.termMonths / 12) : '5',
+    assetType: entry && 'value' in entry ? 'property' : 'investment',
+    propertyValue: entry && 'value' in entry ? String(entry.value / 100) : '',
+    annualAppreciation: entry && 'annualAppreciation' in entry ? String(entry.annualAppreciation) : '3',
+    loanBalance: entry && 'value' in entry && entry.loan ? String(entry.loan.balance / 100) : '0',
+    loanApr: entry && 'value' in entry && entry.loan ? String(entry.loan.apr) : '6',
+    loanTermYears: entry && 'value' in entry && entry.loan ? String(entry.loan.termMonths / 12) : '30',
   })
   updateViewport()
 })
@@ -66,11 +77,22 @@ onBeforeUnmount(() => {
 })
 
 function submit() {
-  if (props.category === 'investments' && form.allocationMode === 'percentage' && Number(form.allocation) > availableAllocation.value + 1e-8) {
+  if (props.category === 'investments' && !isProperty.value && form.allocationMode === 'percentage' && Number(form.allocation) > availableAllocation.value + 1e-8) {
     error.value = `Allocations cannot exceed 100%. Up to ${availableAllocation.value.toFixed(2)}% is available for this investment.`
     return
   }
   const base = { id: props.entry?.id ?? crypto.randomUUID(), name: form.name }
+  if (isProperty.value) {
+    const loan = propertyLoanCents.value > 0 ? { balance: propertyLoanCents.value, apr: Number(form.loanApr), termMonths: Math.round(Number(form.loanTermYears) * 12), payment: propertyLoanPayment.value } : undefined
+    const parsed = realEstateSchema.safeParse({ ...base, value: Math.round(Number(form.propertyValue) * 100), annualAppreciation: Number(form.annualAppreciation), ...(loan ? { loan } : {}) })
+    if (!parsed.success) {
+      error.value = parsed.error.issues.map(issue => `${issue.path.join(' ')}: ${issue.message}`).join('. ')
+      return
+    }
+    emit('save', parsed.data)
+    open.value = false
+    return
+  }
   const schema = isFlow.value ? cashFlowSchema : props.category === 'investments' ? investmentSchema : liabilitySchema
   const value = isFlow.value
     ? { ...base, amount: Math.round(Number(form.amount) * 100), frequency: form.frequency }
@@ -91,11 +113,12 @@ function submit() {
   <Drawer v-model:open="open" :should-scale-background="false">
     <DrawerContent class="income-drawer financial-entry-drawer" :style="viewport" aria-describedby="financial-entry-description">
       <DrawerHeader class="income-drawer-header">
-        <DrawerTitle>{{ entry ? 'Edit' : 'Add' }} {{ singular[category] }}</DrawerTitle>
-        <DrawerDescription id="financial-entry-description">{{ category === 'incomes' ? 'Take-home income, after taxes.' : category === 'investments' ? 'Current value and expected effective annual return.' : category === 'liabilities' ? 'Outstanding debt and its scheduled repayment.' : 'Recurring spending, excluding debt payments entered under liabilities.' }}</DrawerDescription>
+        <DrawerTitle>{{ entry ? 'Edit' : 'Add' }} {{ entryLabel }}</DrawerTitle>
+        <DrawerDescription id="financial-entry-description">{{ category === 'incomes' ? 'Take-home income, after taxes.' : isProperty ? 'Market value and any loan secured against it. Equity grows as the loan is repaid.' : category === 'investments' ? 'Current value and expected effective annual return.' : category === 'liabilities' ? 'Outstanding debt and its scheduled repayment.' : 'Recurring spending, excluding debt payments entered under liabilities.' }}</DrawerDescription>
       </DrawerHeader>
       <form id="financial-entry-form" class="entry-form income-drawer-body" @submit.prevent="submit">
-        <div class="field"><Label for="entry-name">Name</Label><Input id="entry-name" v-model="form.name" required maxlength="100" autocomplete="off" :placeholder="category === 'investments' ? 'e.g. Index fund' : category === 'incomes' ? 'e.g. Salary' : category === 'expenses' ? 'e.g. Housing' : 'e.g. Student loan'" /></div>
+        <div class="field"><Label for="entry-name">Name</Label><Input id="entry-name" v-model="form.name" required maxlength="100" autocomplete="off" :placeholder="isProperty ? 'e.g. Family home' : category === 'investments' ? 'e.g. Index fund' : category === 'incomes' ? 'e.g. Salary' : category === 'expenses' ? 'e.g. Housing' : 'e.g. Student loan'" /></div>
+        <div v-if="category === 'investments'" class="field"><Label for="entry-asset-type">Asset type</Label><Select v-model="form.assetType" :disabled="!!entry"><SelectTrigger id="entry-asset-type" class="w-full"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="investment">Investment account</SelectItem><SelectItem value="property">Real estate</SelectItem></SelectContent></Select></div>
         <template v-if="isFlow">
           <div class="field">
             <Label for="entry-amount">Amount (USD)</Label>
@@ -106,6 +129,27 @@ function submit() {
             <ToggleGroup type="single" variant="outline" class="income-frequency" :model-value="form.frequency" aria-labelledby="entry-frequency-label" @update:model-value="selectFrequency">
               <ToggleGroupItem v-for="option in frequencies" :key="option.value" :value="option.value">{{ option.label }}</ToggleGroupItem>
             </ToggleGroup>
+          </div>
+        </template>
+        <template v-else-if="isProperty">
+          <fieldset class="entry-fieldset">
+            <legend>Property</legend>
+            <div class="form-columns">
+              <div class="field"><Label for="entry-property-value">Market value (USD)</Label><Input id="entry-property-value" v-model="form.propertyValue" type="number" min="0" max="1000000000000" step="0.01" required inputmode="decimal" /></div>
+              <div class="field"><Label for="entry-appreciation">Annual appreciation (%)</Label><Input id="entry-appreciation" v-model="form.annualAppreciation" type="number" min="-100" max="1000" step="0.01" required inputmode="decimal" /></div>
+            </div>
+          </fieldset>
+          <fieldset class="entry-fieldset">
+            <legend>Loan</legend>
+            <div class="field"><Label for="entry-loan-balance">Outstanding balance (USD)</Label><Input id="entry-loan-balance" v-model="form.loanBalance" type="number" min="0" max="1000000000000" step="0.01" required inputmode="decimal" /><span class="muted">Enter 0 if the property is owned outright.</span></div>
+            <div v-if="propertyLoanCents > 0" class="form-columns">
+              <div class="field"><Label for="entry-loan-apr">Interest APR (%)</Label><Input id="entry-loan-apr" v-model="form.loanApr" type="number" min="0" max="1000" step="0.01" required inputmode="decimal" /></div>
+              <div class="field"><Label for="entry-loan-term">Remaining term (years)</Label><Input id="entry-loan-term" v-model="form.loanTermYears" type="number" min="0.08333333333333333" max="40" step="any" required inputmode="decimal" /></div>
+            </div>
+          </fieldset>
+          <div class="income-projection property-summary" role="status" aria-live="polite">
+            <div><span>Equity today</span><strong :class="{ negative: propertyEquity < 0 }" data-testid="property-equity">{{ money(propertyEquity, true) }}</strong></div>
+            <div><span>Monthly loan payment</span><strong data-testid="property-payment">{{ propertyLoanCents > 0 ? (Number.isFinite(propertyLoanPayment) ? money(propertyLoanPayment, true) : '—') : money(0, true) }}</strong></div>
           </div>
         </template>
         <template v-else>
@@ -131,7 +175,7 @@ function submit() {
         <p v-if="error" class="form-error" role="alert">{{ error }}</p>
       </form>
       <DrawerFooter class="income-drawer-footer">
-        <Button type="submit" form="financial-entry-form" class="w-full">{{ entry ? 'Apply changes' : `Add ${singular[category]}` }}</Button>
+        <Button type="submit" form="financial-entry-form" class="w-full">{{ entry ? 'Apply changes' : `Add ${entryLabel}` }}</Button>
         <DrawerClose as-child><Button type="button" variant="outline" class="w-full">Cancel</Button></DrawerClose>
       </DrawerFooter>
     </DrawerContent>

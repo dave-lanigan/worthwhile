@@ -5,6 +5,8 @@ const entry = z.object({ id: z.string().min(1).max(100), name: z.string().trim()
 export const cashFlowSchema = entry.extend({ amount: money, frequency: z.enum(['monthly', 'biweekly', 'annual']) })
 export const investmentSchema = entry.extend({ balance: money, annualRoi: z.number().min(-100).max(1000), allocation: z.number().min(0).max(100).optional(), monthlyContribution: money.optional() }).refine(item => item.allocation === undefined || item.monthlyContribution === undefined, { message: 'Choose a percentage or a monthly amount, not both.' })
 export const liabilitySchema = entry.extend({ balance: money, apr: z.number().min(0).max(1000), payment: money, type: z.enum(['debt', 'loan']).optional(), termMonths: z.number().int().min(1).max(480).optional() }).refine(item => item.type !== 'loan' || item.termMonths !== undefined, { path: ['termMonths'], message: 'Loan duration is required.' })
+export const propertyLoanSchema = z.object({ balance: money, apr: z.number().min(0).max(1000), termMonths: z.number().int().min(1).max(480), payment: money })
+export const realEstateSchema = entry.extend({ value: money, annualAppreciation: z.number().min(-100).max(1000), loan: propertyLoanSchema.optional() })
 
 export const financialPlanSchema = z.object({
   startingCash: money,
@@ -13,8 +15,9 @@ export const financialPlanSchema = z.object({
   investments: z.array(investmentSchema).max(100),
   expenses: z.array(cashFlowSchema).max(100),
   liabilities: z.array(liabilitySchema).max(100),
+  realEstate: z.array(realEstateSchema).max(100).default([]),
 }).superRefine((plan, context) => {
-  const ids = [...plan.incomes, ...plan.investments, ...plan.expenses, ...plan.liabilities].map(item => item.id)
+  const ids = [...plan.incomes, ...plan.investments, ...plan.expenses, ...plan.liabilities, ...plan.realEstate].map(item => item.id)
   if (new Set(ids).size !== ids.length) context.addIssue({ code: 'custom', message: 'Entry IDs must be unique.' })
   if (plan.investments.reduce((total, item) => total + (item.allocation ?? 0), 0) > 100 + 1e-8) {
     context.addIssue({ code: 'custom', path: ['investments'], message: 'Investment allocations cannot exceed 100% of surplus.' })
@@ -26,6 +29,8 @@ export type FinancialPlan = z.infer<typeof financialPlanSchema>
 export type CashFlow = z.infer<typeof cashFlowSchema>
 export type Investment = z.infer<typeof investmentSchema>
 export type Liability = z.infer<typeof liabilitySchema>
+export type RealEstate = z.infer<typeof realEstateSchema>
+export type PropertyLoan = z.infer<typeof propertyLoanSchema>
 export type SavedPlan = { plan: FinancialPlan; revision: number }
 
 export const planProfileSchema = z.object({
@@ -68,7 +73,7 @@ export function investmentAllocation(investment: Investment, investments: Invest
 }
 
 export function emptyPlan(): FinancialPlan {
-  return { startingCash: 0, years: 10, incomes: [], investments: [], expenses: [], liabilities: [] }
+  return { startingCash: 0, years: 10, incomes: [], investments: [], expenses: [], liabilities: [], realEstate: [] }
 }
 
 export function examplePlan(): FinancialPlan {
@@ -90,5 +95,6 @@ export function examplePlan(): FinancialPlan {
     liabilities: [
       { id: 'example-student-loan', name: 'Jim Doe student loan', balance: 210000, apr: 4.5, payment: 18000 },
     ],
+    realEstate: [],
   }
 }
