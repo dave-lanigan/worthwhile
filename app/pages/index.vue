@@ -103,13 +103,13 @@ const summaryMetrics = computed(() => {
   if (activeCategory.value === 'incomes') return {
     leftLabel: 'Total monthly inflow',
     leftValue: categoryTotals.value.incomes,
-    rightLabel: 'Annualized run-rate',
+    rightLabel: 'Annual total',
     rightValue: yearlyIncome.value,
   }
   if (activeCategory.value === 'expenses') return {
     leftLabel: 'Total monthly outflow',
     leftValue: categoryTotals.value.expenses,
-    rightLabel: 'Annualized run-rate',
+    rightLabel: 'Annual total',
     rightValue: draft.value.expenses.reduce((total, expense) => total + annualAmount(expense), 0),
   }
   if (activeCategory.value === 'investments' && draft.value.realEstate.length) return {
