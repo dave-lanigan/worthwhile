@@ -216,6 +216,8 @@ main { max-width: 1256px; padding: 40px 28px 0; margin: auto; }
 .form-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .form-error { padding: 10px; font-size: 12px; border-radius: 8px; overflow-wrap: anywhere; }
 .income-drawer { bottom: var(--income-drawer-offset, 0px); height: min(66dvh, calc(var(--income-drawer-viewport, 100dvh) - 24px)); max-height: calc(var(--income-drawer-viewport, 100dvh) - 24px); margin-top: 0; }
+.financial-entry-drawer[data-vaul-drawer-direction='bottom'] { height: auto; max-height: calc(var(--income-drawer-viewport, 100dvh) * 0.95); }
+.financial-entry-drawer .income-drawer-body { flex: 0 1 auto; }
 .income-drawer-header { gap: 4px; padding: 8px 20px 12px; text-align: left; }
 .income-drawer-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 4px 20px 20px; scroll-padding-block: 20px; }
 .income-amount { position: relative; display: flex; align-items: center; }

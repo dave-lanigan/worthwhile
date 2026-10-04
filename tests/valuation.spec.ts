@@ -9,6 +9,22 @@ async function openAsset(page: Page, type: 'Car' | 'Real estate') {
 
 test.beforeEach(async ({ page }) => { await page.goto('/guest') })
 
+test('asset dialog can grow up to 95% of the visible viewport', async ({ page }) => {
+  await openAsset(page, 'Car')
+  await page.getByRole('tab', { name: 'Look up by VIN', exact: true }).click()
+  await page.getByLabel('Outstanding balance (USD)').fill('6000')
+  const drawer = page.locator('.financial-entry-drawer')
+  await expect(drawer).toBeVisible()
+  const dimensions = await drawer.evaluate(element => ({
+    maxHeight: parseFloat(getComputedStyle(element).maxHeight),
+    viewport: window.visualViewport?.height ?? window.innerHeight,
+    flex: getComputedStyle(element.querySelector('.income-drawer-body')!).flex,
+  }))
+  expect(dimensions.maxHeight).toBeCloseTo(dimensions.viewport * 0.95, 0)
+  expect(dimensions.flex).toBe('0 1 auto')
+  await expect(page.getByRole('button', { name: 'Add car', exact: true })).toBeVisible()
+})
+
 for (const type of ['Car', 'Real estate'] as const) {
   test(`${type} loan appears in Debt and stays linked through edits and deletion`, async ({ page }) => {
     await openAsset(page, type)
@@ -173,7 +189,10 @@ test('VIN lookup prefills details, saves the override and only refreshes explici
   await page.getByRole('button', { name: 'Look up estimate', exact: true }).click()
   await expect(page.getByLabel('Market value (USD)')).toHaveValue('18000')
   await expect(page.getByLabel('Name', { exact: true })).toHaveValue('2020 Honda Civic')
-  await expect(page.getByLabel('Trim', { exact: true })).toHaveValue('EX')
+  await expect(page.getByText('Optional details', { exact: true })).toHaveCount(0)
+  for (const label of ['Year', 'Make', 'Model', 'Trim']) {
+    await expect(page.getByLabel(label, { exact: true })).toHaveCount(0)
+  }
   await expect(page.getByText('Estimate via MarketCheck · Oct 2026')).toBeVisible()
   await page.getByLabel('Market value (USD)').fill('16500')
   await page.getByRole('button', { name: 'Add car', exact: true }).click()
