@@ -30,17 +30,20 @@ function validFields(values: Record<string, unknown>, shape: Record<string, z.Zo
 async function valueCar(request: Extract<ValuationRequest, { type: 'car' }>): Promise<ValuationResult> {
   const vehicle: NonNullable<ValuationResult['vehicle']> = { vin: request.vin, mileage: request.mileage, zip: request.zip }
   try {
-    const decoded = object(await $fetch<unknown>(`https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValues/${request.vin}`, {
+    const decoded = object(await $fetch<unknown>(`https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVin/${request.vin}`, {
       ...fetchOptions,
       query: { format: 'json' },
     }))
-    const details = object(Array.isArray(decoded.Results) ? decoded.Results[0] : undefined)
-    const modelYear = text(details.ModelYear)
+    const details = new Map((Array.isArray(decoded.Results) ? decoded.Results : []).map((row: unknown) => {
+      const item = object(row)
+      return [text(item.Variable), text(item.Value)]
+    }))
+    const modelYear = details.get('Model Year')
     Object.assign(vehicle, validFields({
       year: modelYear && /^\d{4}$/.test(modelYear) ? Number(modelYear) : undefined,
-      make: text(details.Make),
-      model: text(details.Model),
-      trim: text(details.Trim),
+      make: details.get('Make'),
+      model: details.get('Model'),
+      trim: details.get('Trim'),
     }, vehicleSchema.shape))
   } catch {
     // A partial or unavailable VIN decode must not prevent a price lookup.
@@ -52,6 +55,7 @@ async function valueCar(request: Extract<ValuationRequest, { type: 'car' }>): Pr
   try {
     const result = object(await $fetch<unknown>('https://api.marketcheck.com/v2/predict/car/us/marketcheck', {
       ...fetchOptions,
+      // This is independent-dealer retail pricing, not a private-party or trade-in estimate.
       query: { api_key: apiKey, vin: request.vin, mileage: request.mileage, zip: request.zip, dealer_type: 'independent' },
     }))
     const value = cents(result.marketcheck_price)

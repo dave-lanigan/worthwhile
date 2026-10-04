@@ -13,6 +13,11 @@ test('manual car and home entry never calls valuation, including an outage', asy
   let calls = 0
   await page.route('**/api/valuation', route => { calls++; return route.abort() })
   await openAsset(page, 'Car')
+  await page.getByRole('tab', { name: 'Look up by VIN', exact: true }).click()
+  await page.getByLabel('VIN', { exact: true }).fill('SHORT')
+  await page.getByLabel('Mileage', { exact: true }).fill('-1')
+  await page.getByLabel('ZIP code', { exact: true }).fill('INVALID')
+  await page.getByRole('tab', { name: 'Enter manually', exact: true }).click()
   await page.getByLabel('Name', { exact: true }).fill('Manual car')
   await page.getByLabel('Market value (USD)').fill('12000')
   await page.getByRole('button', { name: 'Add car', exact: true }).click()

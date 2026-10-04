@@ -132,9 +132,12 @@ function submit() {
   }
   const base = { id: props.entry?.id ?? crypto.randomUUID(), name: form.name }
   if (isPhysicalAsset.value) {
-    const loan = isProperty.value && propertyLoanCents.value > 0 ? { balance: propertyLoanCents.value, apr: Number(form.loanApr), termMonths: Math.round(Number(form.loanTermYears) * 12), payment: propertyLoanPayment.value } : undefined
+    const loan = isCar.value
+      ? props.entry && 'value' in props.entry ? props.entry.loan : undefined
+      : propertyLoanCents.value > 0 ? { balance: propertyLoanCents.value, apr: Number(form.loanApr), termMonths: Math.round(Number(form.loanTermYears) * 12), payment: propertyLoanPayment.value } : undefined
     const vin = details.vin.trim().toUpperCase()
-    const vehicle = isCar.value ? { vin: /^[A-HJ-NPR-Z0-9]{17}$/.test(vin) ? vin : undefined, year: optionalNumber(details.year), make: details.make.trim() || undefined, model: details.model.trim() || undefined, trim: details.trim.trim() || undefined, mileage: optionalNumber(details.mileage), zip: /^\d{5}$/.test(details.zip.trim()) ? details.zip.trim() : undefined } : undefined
+    const mileage = optionalNumber(details.mileage)
+    const vehicle = isCar.value ? { vin: /^[A-HJ-NPR-Z0-9]{17}$/.test(vin) ? vin : undefined, year: optionalNumber(details.year), make: details.make.trim() || undefined, model: details.model.trim() || undefined, trim: details.trim.trim() || undefined, mileage: mileage !== undefined && Number.isFinite(mileage) && mileage >= 0 && mileage <= 10_000_000 ? mileage : undefined, zip: /^\d{5}$/.test(details.zip.trim()) ? details.zip.trim() : undefined } : undefined
     const propertyDetails = isProperty.value ? { address: details.address.trim() || undefined, bedrooms: optionalNumber(details.bedrooms), bathrooms: optionalNumber(details.bathrooms), squareFootage: optionalNumber(details.squareFootage), yearBuilt: optionalNumber(details.yearBuilt) } : undefined
     const parsed = realEstateSchema.safeParse({ ...base, assetType: form.assetType, value: Math.round(Number(form.propertyValue) * 100), annualAppreciation: Number(form.annualAppreciation), vehicle, propertyDetails, valuation: valuation.value, ...(loan ? { loan } : {}) })
     if (!parsed.success) {

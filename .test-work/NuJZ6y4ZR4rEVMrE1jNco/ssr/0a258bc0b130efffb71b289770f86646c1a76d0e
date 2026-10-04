@@ -1,0 +1,47 @@
+__vite_ssr_exportName__("default", () => { try { return __vite_ssr_export_default__ } catch {} });
+const __vite_ssr_import_0__ = await __vite_ssr_import__("/node_modules/h3/dist/index.mjs", {"importedNames":["createError","defineEventHandler","readBody","setHeader"]});
+const __vite_ssr_import_1__ = await __vite_ssr_import__("/shared/schemas/financial-plan.ts", {"importedNames":["savePlanSchema"]});
+const __vite_ssr_import_2__ = await __vite_ssr_import__("/shared/utils/projection.ts", {"importedNames":["projectNetWorth"]});
+const __vite_ssr_import_3__ = await __vite_ssr_import__("/server/utils/database.ts", {"importedNames":["getPlanRepository"]});
+const __vite_ssr_import_4__ = await __vite_ssr_import__("/server/utils/plan-repository.ts", {"importedNames":["RevisionConflict"]});
+const __vite_ssr_import_5__ = await __vite_ssr_import__("/server/utils/plan-auth.ts", {"importedNames":["requireSignedInUser"]});
+
+
+
+
+
+
+const __vite_ssr_export_default__ = (0,__vite_ssr_import_0__.defineEventHandler)(async (event) => {
+	(0,__vite_ssr_import_0__.setHeader)(event, "Cache-Control", "no-store");
+	const userId = (0,__vite_ssr_import_5__.requireSignedInUser)(event);
+	const parsed = __vite_ssr_import_1__.savePlanSchema.safeParse(await (0,__vite_ssr_import_0__.readBody)(event));
+	if (!parsed.success) throw (0,__vite_ssr_import_0__.createError)({
+		statusCode: 400,
+		statusMessage: "Check the financial values.",
+		data: parsed.error.flatten()
+	});
+	try {
+		(0,__vite_ssr_import_2__.projectNetWorth)(parsed.data.plan);
+	} catch {
+		throw (0,__vite_ssr_import_0__.createError)({
+			statusCode: 400,
+			statusMessage: "Forecast exceeds the supported amount. Reduce balances, return rates, or horizon."
+		});
+	};
+	try {
+		return await (await (0,__vite_ssr_import_3__.getPlanRepository)()).write(userId, parsed.data);
+	} catch (error) {
+		if (error instanceof __vite_ssr_import_4__.RevisionConflict) throw (0,__vite_ssr_import_0__.createError)({
+			statusCode: 409,
+			statusMessage: "Another tab saved changes. Reload the saved plan before saving again."
+		});
+		throw (0,__vite_ssr_import_0__.createError)({
+			statusCode: 500,
+			statusMessage: "Unable to save. Your changes remain in this tab."
+		});
+	}
+});
+//# sourceMappingSource=vite-generated
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IkFBQUEsQ0FBQTtBQUFBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTs7Ozs7OztBQUVBLG9DQUFlLDZDQUFtQixPQUFPLFVBQVU7Q0FDakQsb0NBQVUsT0FBTyxpQkFBaUIsVUFBVTtDQUM1QyxNQUFNLFNBQVMsOENBQW9CLEtBQUs7Q0FDeEMsTUFBTSxTQUFTLHFDQUFlLFVBQVUsTUFBTSxtQ0FBUyxLQUFLLENBQUM7Q0FDN0QsSUFBSSxDQUFDLE9BQU8sU0FBUyxNQUFNLHNDQUFZO0VBQUUsWUFBWTtFQUFLLGVBQWU7RUFBK0IsTUFBTSxPQUFPLE1BQU0sUUFBUTtDQUFFLENBQUM7Q0FDdEksSUFBSTtFQUNGLDBDQUFnQixPQUFPLEtBQUssSUFBSTtDQUNsQyxRQUFRO0VBQ04sTUFBTSxzQ0FBWTtHQUFFLFlBQVk7R0FBSyxlQUFlO0VBQW9GLENBQUM7Q0FDM0k7Q0FDQSxJQUFJO0VBQ0YsT0FBTyxPQUFPLE1BQU0sNkNBQWtCLENBQUMsQ0FBRSxNQUFNLFFBQVEsT0FBTyxJQUFJO0NBQ3BFLFNBQVMsT0FBTztFQUNkLElBQUksaUJBQWlCLHdDQUFrQixNQUFNLHNDQUFZO0dBQUUsWUFBWTtHQUFLLGVBQWU7RUFBd0UsQ0FBQztFQUNwSyxNQUFNLHNDQUFZO0dBQUUsWUFBWTtHQUFLLGVBQWU7RUFBbUQsQ0FBQztDQUMxRztBQUNGLENBQUMiLCJuYW1lcyI6W10sImlnbm9yZUxpc3QiOltdLCJzb3VyY2VzIjpbInBsYW4ucHV0LnRzIl0sInNvdXJjZXNDb250ZW50IjpbImltcG9ydCB7IGNyZWF0ZUVycm9yLCBkZWZpbmVFdmVudEhhbmRsZXIsIHJlYWRCb2R5LCBzZXRIZWFkZXIgfSBmcm9tICdoMydcbmltcG9ydCB7IHNhdmVQbGFuU2NoZW1hIH0gZnJvbSAnLi4vLi4vc2hhcmVkL3NjaGVtYXMvZmluYW5jaWFsLXBsYW4nXG5pbXBvcnQgeyBwcm9qZWN0TmV0V29ydGggfSBmcm9tICcuLi8uLi9zaGFyZWQvdXRpbHMvcHJvamVjdGlvbidcbmltcG9ydCB7IGdldFBsYW5SZXBvc2l0b3J5IH0gZnJvbSAnLi4vdXRpbHMvZGF0YWJhc2UnXG5pbXBvcnQgeyBSZXZpc2lvbkNvbmZsaWN0IH0gZnJvbSAnLi4vdXRpbHMvcGxhbi1yZXBvc2l0b3J5J1xuaW1wb3J0IHsgcmVxdWlyZVNpZ25lZEluVXNlciB9IGZyb20gJy4uL3V0aWxzL3BsYW4tYXV0aCdcblxuZXhwb3J0IGRlZmF1bHQgZGVmaW5lRXZlbnRIYW5kbGVyKGFzeW5jIChldmVudCkgPT4ge1xuICBzZXRIZWFkZXIoZXZlbnQsICdDYWNoZS1Db250cm9sJywgJ25vLXN0b3JlJylcbiAgY29uc3QgdXNlcklkID0gcmVxdWlyZVNpZ25lZEluVXNlcihldmVudClcbiAgY29uc3QgcGFyc2VkID0gc2F2ZVBsYW5TY2hlbWEuc2FmZVBhcnNlKGF3YWl0IHJlYWRCb2R5KGV2ZW50KSlcbiAgaWYgKCFwYXJzZWQuc3VjY2VzcykgdGhyb3cgY3JlYXRlRXJyb3IoeyBzdGF0dXNDb2RlOiA0MDAsIHN0YXR1c01lc3NhZ2U6ICdDaGVjayB0aGUgZmluYW5jaWFsIHZhbHVlcy4nLCBkYXRhOiBwYXJzZWQuZXJyb3IuZmxhdHRlbigpIH0pXG4gIHRyeSB7XG4gICAgcHJvamVjdE5ldFdvcnRoKHBhcnNlZC5kYXRhLnBsYW4pXG4gIH0gY2F0Y2gge1xuICAgIHRocm93IGNyZWF0ZUVycm9yKHsgc3RhdHVzQ29kZTogNDAwLCBzdGF0dXNNZXNzYWdlOiAnRm9yZWNhc3QgZXhjZWVkcyB0aGUgc3VwcG9ydGVkIGFtb3VudC4gUmVkdWNlIGJhbGFuY2VzLCByZXR1cm4gcmF0ZXMsIG9yIGhvcml6b24uJyB9KVxuICB9XG4gIHRyeSB7XG4gICAgcmV0dXJuIGF3YWl0IChhd2FpdCBnZXRQbGFuUmVwb3NpdG9yeSgpKS53cml0ZSh1c2VySWQsIHBhcnNlZC5kYXRhKVxuICB9IGNhdGNoIChlcnJvcikge1xuICAgIGlmIChlcnJvciBpbnN0YW5jZW9mIFJldmlzaW9uQ29uZmxpY3QpIHRocm93IGNyZWF0ZUVycm9yKHsgc3RhdHVzQ29kZTogNDA5LCBzdGF0dXNNZXNzYWdlOiAnQW5vdGhlciB0YWIgc2F2ZWQgY2hhbmdlcy4gUmVsb2FkIHRoZSBzYXZlZCBwbGFuIGJlZm9yZSBzYXZpbmcgYWdhaW4uJyB9KVxuICAgIHRocm93IGNyZWF0ZUVycm9yKHsgc3RhdHVzQ29kZTogNTAwLCBzdGF0dXNNZXNzYWdlOiAnVW5hYmxlIHRvIHNhdmUuIFlvdXIgY2hhbmdlcyByZW1haW4gaW4gdGhpcyB0YWIuJyB9KVxuICB9XG59KSJdLCJmaWxlIjoiL3NlcnZlci9hcGkvcGxhbi5wdXQudHMifQ==
+
+//# vitestCache=W3siZmlsZSI6IjEiLCJpZCI6IjEiLCJ1cmwiOiIyIiwiaW1wb3J0ZWRVcmxzIjoiMyIsIm1hcHBpbmdzIjpmYWxzZSwiZGVwcyI6IjQiLCJkeW5hbWljRGVwcyI6IjUiLCJzdGF0aWNNb2NrcyI6bnVsbH0sIi9ob21lL3J1bm5lci93b3JrL3dvcnRod2hpbGUvd29ydGh3aGlsZS9zZXJ2ZXIvYXBpL3BsYW4ucHV0LnRzIiwiL3NlcnZlci9hcGkvcGxhbi5wdXQudHMiLFtdLFsiNiIsIjciLCI4IiwiOSIsIjEwIiwiMTEiXSxbXSwiL25vZGVfbW9kdWxlcy9oMy9kaXN0L2luZGV4Lm1qcyIsIi9zaGFyZWQvc2NoZW1hcy9maW5hbmNpYWwtcGxhbi50cyIsIi9zaGFyZWQvdXRpbHMvcHJvamVjdGlvbi50cyIsIi9zZXJ2ZXIvdXRpbHMvZGF0YWJhc2UudHMiLCIvc2VydmVyL3V0aWxzL3BsYW4tcmVwb3NpdG9yeS50cyIsIi9zZXJ2ZXIvdXRpbHMvcGxhbi1hdXRoLnRzIl0=

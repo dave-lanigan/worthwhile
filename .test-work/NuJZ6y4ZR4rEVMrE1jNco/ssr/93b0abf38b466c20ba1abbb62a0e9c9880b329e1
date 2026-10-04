@@ -1,0 +1,54 @@
+const __vite_ssr_import_0__ = await __vite_ssr_import__("/node_modules/vitest/dist/index.js", {"importedNames":["describe","expect","it"]});
+const __vite_ssr_import_1__ = await __vite_ssr_import__("/shared/schemas/financial-plan.ts", {"importedNames":["liabilitySchema"]});
+const __vite_ssr_import_2__ = await __vite_ssr_import__("/shared/utils/loan.ts", {"importedNames":["monthlyLoanPayment"]});
+const __vite_ssr_import_3__ = await __vite_ssr_import__("/shared/utils/projection.ts", {"importedNames":["projectNetWorth"]});
+const __vite_ssr_import_4__ = await __vite_ssr_import__("/shared/schemas/financial-plan.ts", {"importedNames":["emptyPlan"]});
+
+
+
+
+
+(0,__vite_ssr_import_0__.describe)("amortized loans", () => {
+	(0,__vite_ssr_import_0__.it)("computes the monthly payment for interest-bearing and zero-interest loans", () => {
+		(0,__vite_ssr_import_0__.expect)((0,__vite_ssr_import_2__.monthlyLoanPayment)(12e6, 6, 360)).toBe(71947);
+		(0,__vite_ssr_import_0__.expect)((0,__vite_ssr_import_2__.monthlyLoanPayment)(12e4, 0, 12)).toBe(1e4);
+		(0,__vite_ssr_import_0__.expect)((0,__vite_ssr_import_2__.monthlyLoanPayment)(100, 0, 3)).toBe(34);
+		(0,__vite_ssr_import_0__.expect)((0,__vite_ssr_import_2__.monthlyLoanPayment)(0, 5, 12)).toBe(0);
+	});
+	(0,__vite_ssr_import_0__.it)("rejects invalid terms and persists valid loan details for editing", () => {
+		(0,__vite_ssr_import_0__.expect)(Number.isNaN((0,__vite_ssr_import_2__.monthlyLoanPayment)(1e4, 5, 0))).toBe(true);
+		(0,__vite_ssr_import_0__.expect)(__vite_ssr_import_1__.liabilitySchema.safeParse({
+			id: "a",
+			name: "Loan",
+			balance: 1e4,
+			apr: 5,
+			payment: 100,
+			type: "loan"
+		}).success).toBe(false);
+		const loan = __vite_ssr_import_1__.liabilitySchema.parse({
+			id: "a",
+			name: "Loan",
+			balance: 12e4,
+			apr: 0,
+			termMonths: 12,
+			payment: (0,__vite_ssr_import_2__.monthlyLoanPayment)(12e4, 0, 12),
+			type: "loan"
+		});
+		const plan = (0,__vite_ssr_import_4__.emptyPlan)();
+		plan.liabilities = [loan];
+		(0,__vite_ssr_import_0__.expect)((0,__vite_ssr_import_3__.projectNetWorth)(plan).points[12].debt).toBe(0);
+		plan.years = 30;
+		plan.liabilities = [{
+			...loan,
+			balance: 12e6,
+			apr: 6,
+			termMonths: 360,
+			payment: (0,__vite_ssr_import_2__.monthlyLoanPayment)(12e6, 6, 360)
+		}];
+		(0,__vite_ssr_import_0__.expect)((0,__vite_ssr_import_3__.projectNetWorth)(plan).points[360].debt).toBe(0);
+	});
+});
+//# sourceMappingSource=vite-generated
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IkFBQUE7QUFDQTtBQUNBO0FBQ0E7QUFDQTs7Ozs7O0FBRUEsbUNBQVMseUJBQXlCO0NBQ2hDLDZCQUFHLG1GQUFtRjtFQUNwRixpQ0FBTyw2Q0FBbUIsTUFBVSxHQUFHLEdBQUcsQ0FBQyxDQUFDLENBQUMsS0FBSyxLQUFLO0VBQ3ZELGlDQUFPLDZDQUFtQixNQUFRLEdBQUcsRUFBRSxDQUFDLENBQUMsQ0FBQyxLQUFLLEdBQUs7RUFDcEQsaUNBQU8sNkNBQW1CLEtBQUssR0FBRyxDQUFDLENBQUMsQ0FBQyxDQUFDLEtBQUssRUFBRTtFQUM3QyxpQ0FBTyw2Q0FBbUIsR0FBRyxHQUFHLEVBQUUsQ0FBQyxDQUFDLENBQUMsS0FBSyxDQUFDO0NBQzdDLENBQUM7Q0FFRCw2QkFBRywyRUFBMkU7RUFDNUUsaUNBQU8sT0FBTyxNQUFNLDZDQUFtQixLQUFPLEdBQUcsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLEtBQUssSUFBSTtFQUMvRCxpQ0FBTyxzQ0FBZ0IsVUFBVTtHQUFFLElBQUk7R0FBSyxNQUFNO0dBQVEsU0FBUztHQUFPLEtBQUs7R0FBRyxTQUFTO0dBQUssTUFBTTtFQUFPLENBQUMsQ0FBQyxDQUFDLE9BQU8sQ0FBQyxDQUFDLEtBQUssS0FBSztFQUNuSSxNQUFNLE9BQU8sc0NBQWdCLE1BQU07R0FBRSxJQUFJO0dBQUssTUFBTTtHQUFRLFNBQVM7R0FBUSxLQUFLO0dBQUcsWUFBWTtHQUFJLFNBQVMsNkNBQW1CLE1BQVEsR0FBRyxFQUFFO0dBQUcsTUFBTTtFQUFPLENBQUM7RUFDL0osTUFBTSxPQUFPLHFDQUFVO0VBQ3ZCLEtBQUssY0FBYyxDQUFDLElBQUk7RUFDeEIsaUNBQU8sMENBQWdCLElBQUksQ0FBQyxDQUFDLE9BQU8sR0FBRyxDQUFFLElBQUksQ0FBQyxDQUFDLEtBQUssQ0FBQztFQUNyRCxLQUFLLFFBQVE7RUFDYixLQUFLLGNBQWMsQ0FBQztHQUFFLEdBQUc7R0FBTSxTQUFTO0dBQVUsS0FBSztHQUFHLFlBQVk7R0FBSyxTQUFTLDZDQUFtQixNQUFVLEdBQUcsR0FBRztFQUFFLENBQUM7RUFDMUgsaUNBQU8sMENBQWdCLElBQUksQ0FBQyxDQUFDLE9BQU8sSUFBSSxDQUFFLElBQUksQ0FBQyxDQUFDLEtBQUssQ0FBQztDQUN4RCxDQUFDO0FBQ0gsQ0FBQyIsIm5hbWVzIjpbXSwiaWdub3JlTGlzdCI6W10sInNvdXJjZXMiOlsibG9hbi50ZXN0LnRzIl0sInNvdXJjZXNDb250ZW50IjpbImltcG9ydCB7IGRlc2NyaWJlLCBleHBlY3QsIGl0IH0gZnJvbSAndml0ZXN0J1xuaW1wb3J0IHsgbGlhYmlsaXR5U2NoZW1hIH0gZnJvbSAnLi4vc2hhcmVkL3NjaGVtYXMvZmluYW5jaWFsLXBsYW4nXG5pbXBvcnQgeyBtb250aGx5TG9hblBheW1lbnQgfSBmcm9tICcuLi9zaGFyZWQvdXRpbHMvbG9hbidcbmltcG9ydCB7IHByb2plY3ROZXRXb3J0aCB9IGZyb20gJy4uL3NoYXJlZC91dGlscy9wcm9qZWN0aW9uJ1xuaW1wb3J0IHsgZW1wdHlQbGFuIH0gZnJvbSAnLi4vc2hhcmVkL3NjaGVtYXMvZmluYW5jaWFsLXBsYW4nXG5cbmRlc2NyaWJlKCdhbW9ydGl6ZWQgbG9hbnMnLCAoKSA9PiB7XG4gIGl0KCdjb21wdXRlcyB0aGUgbW9udGhseSBwYXltZW50IGZvciBpbnRlcmVzdC1iZWFyaW5nIGFuZCB6ZXJvLWludGVyZXN0IGxvYW5zJywgKCkgPT4ge1xuICAgIGV4cGVjdChtb250aGx5TG9hblBheW1lbnQoMTIwMDAwMDAsIDYsIDM2MCkpLnRvQmUoNzE5NDcpXG4gICAgZXhwZWN0KG1vbnRobHlMb2FuUGF5bWVudCgxMjAwMDAsIDAsIDEyKSkudG9CZSgxMDAwMClcbiAgICBleHBlY3QobW9udGhseUxvYW5QYXltZW50KDEwMCwgMCwgMykpLnRvQmUoMzQpXG4gICAgZXhwZWN0KG1vbnRobHlMb2FuUGF5bWVudCgwLCA1LCAxMikpLnRvQmUoMClcbiAgfSlcblxuICBpdCgncmVqZWN0cyBpbnZhbGlkIHRlcm1zIGFuZCBwZXJzaXN0cyB2YWxpZCBsb2FuIGRldGFpbHMgZm9yIGVkaXRpbmcnLCAoKSA9PiB7XG4gICAgZXhwZWN0KE51bWJlci5pc05hTihtb250aGx5TG9hblBheW1lbnQoMTAwMDAsIDUsIDApKSkudG9CZSh0cnVlKVxuICAgIGV4cGVjdChsaWFiaWxpdHlTY2hlbWEuc2FmZVBhcnNlKHsgaWQ6ICdhJywgbmFtZTogJ0xvYW4nLCBiYWxhbmNlOiAxMDAwMCwgYXByOiA1LCBwYXltZW50OiAxMDAsIHR5cGU6ICdsb2FuJyB9KS5zdWNjZXNzKS50b0JlKGZhbHNlKVxuICAgIGNvbnN0IGxvYW4gPSBsaWFiaWxpdHlTY2hlbWEucGFyc2UoeyBpZDogJ2EnLCBuYW1lOiAnTG9hbicsIGJhbGFuY2U6IDEyMDAwMCwgYXByOiAwLCB0ZXJtTW9udGhzOiAxMiwgcGF5bWVudDogbW9udGhseUxvYW5QYXltZW50KDEyMDAwMCwgMCwgMTIpLCB0eXBlOiAnbG9hbicgfSlcbiAgICBjb25zdCBwbGFuID0gZW1wdHlQbGFuKClcbiAgICBwbGFuLmxpYWJpbGl0aWVzID0gW2xvYW5dXG4gICAgZXhwZWN0KHByb2plY3ROZXRXb3J0aChwbGFuKS5wb2ludHNbMTJdIS5kZWJ0KS50b0JlKDApXG4gICAgcGxhbi55ZWFycyA9IDMwXG4gICAgcGxhbi5saWFiaWxpdGllcyA9IFt7IC4uLmxvYW4sIGJhbGFuY2U6IDEyMDAwMDAwLCBhcHI6IDYsIHRlcm1Nb250aHM6IDM2MCwgcGF5bWVudDogbW9udGhseUxvYW5QYXltZW50KDEyMDAwMDAwLCA2LCAzNjApIH1dXG4gICAgZXhwZWN0KHByb2plY3ROZXRXb3J0aChwbGFuKS5wb2ludHNbMzYwXSEuZGVidCkudG9CZSgwKVxuICB9KVxufSlcbiJdLCJmaWxlIjoiL3Rlc3RzL2xvYW4udGVzdC50cyJ9
+
+//# vitestCache=W3siZmlsZSI6IjEiLCJpZCI6IjEiLCJ1cmwiOiIyIiwiaW1wb3J0ZWRVcmxzIjoiMyIsIm1hcHBpbmdzIjpmYWxzZSwiZGVwcyI6IjQiLCJkeW5hbWljRGVwcyI6IjUiLCJzdGF0aWNNb2NrcyI6bnVsbH0sIi9ob21lL3J1bm5lci93b3JrL3dvcnRod2hpbGUvd29ydGh3aGlsZS90ZXN0cy9sb2FuLnRlc3QudHMiLCIvdGVzdHMvbG9hbi50ZXN0LnRzIixbXSxbIjYiLCI3IiwiOCIsIjkiXSxbXSwiL25vZGVfbW9kdWxlcy92aXRlc3QvZGlzdC9pbmRleC5qcyIsIi9zaGFyZWQvc2NoZW1hcy9maW5hbmNpYWwtcGxhbi50cyIsIi9zaGFyZWQvdXRpbHMvbG9hbi50cyIsIi9zaGFyZWQvdXRpbHMvcHJvamVjdGlvbi50cyJd

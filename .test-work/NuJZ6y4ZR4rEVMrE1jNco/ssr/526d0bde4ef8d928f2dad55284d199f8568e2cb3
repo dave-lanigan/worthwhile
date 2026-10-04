@@ -1,0 +1,25 @@
+__vite_ssr_exportName__("default", () => { try { return __vite_ssr_export_default__ } catch {} });
+const __vite_ssr_import_0__ = await __vite_ssr_import__("/node_modules/h3/dist/index.mjs", {"importedNames":["createError","defineEventHandler","readBody","setHeader"]});
+const __vite_ssr_import_1__ = await __vite_ssr_import__("/shared/schemas/valuation.ts", {"importedNames":["valuationRequestSchema"]});
+const __vite_ssr_import_2__ = await __vite_ssr_import__("/server/utils/asset-valuation.ts", {"importedNames":["lookupAssetValuation"]});
+const __vite_ssr_import_3__ = await __vite_ssr_import__("/server/utils/plan-auth.ts", {"importedNames":["requireSignedInUser"]});
+
+
+
+
+const __vite_ssr_export_default__ = (0,__vite_ssr_import_0__.defineEventHandler)(async (event) => {
+	(0,__vite_ssr_import_0__.setHeader)(event, "Cache-Control", "no-store");
+	(0,__vite_ssr_import_3__.requireSignedInUser)(event);
+	const request = __vite_ssr_import_1__.valuationRequestSchema.safeParse(await (0,__vite_ssr_import_0__.readBody)(event));
+	if (!request.success) {
+		throw (0,__vite_ssr_import_0__.createError)({
+			statusCode: 400,
+			statusMessage: "Enter valid vehicle or property details."
+		});
+	};
+	return (0,__vite_ssr_import_2__.lookupAssetValuation)(request.data);
+});
+//# sourceMappingSource=vite-generated
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IkFBQUEsQ0FBQTtBQUFBO0FBQ0E7QUFDQTtBQUNBOzs7OztBQUVBLG9DQUFlLDZDQUFtQixPQUFPLFVBQVU7Q0FDakQsb0NBQVUsT0FBTyxpQkFBaUIsVUFBVTtDQUM1Qyw4Q0FBb0IsS0FBSztDQUN6QixNQUFNLFVBQVUsNkNBQXVCLFVBQVUsTUFBTSxtQ0FBUyxLQUFLLENBQUM7Q0FDdEUsSUFBSSxDQUFDLFFBQVEsU0FBUztFQUNwQixNQUFNLHNDQUFZO0dBQUUsWUFBWTtHQUFLLGVBQWU7RUFBMkMsQ0FBQztDQUNsRztDQUNBLE9BQU8sK0NBQXFCLFFBQVEsSUFBSTtBQUMxQyxDQUFDIiwibmFtZXMiOltdLCJpZ25vcmVMaXN0IjpbXSwic291cmNlcyI6WyJ2YWx1YXRpb24ucG9zdC50cyJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgeyBjcmVhdGVFcnJvciwgZGVmaW5lRXZlbnRIYW5kbGVyLCByZWFkQm9keSwgc2V0SGVhZGVyIH0gZnJvbSAnaDMnXG5pbXBvcnQgeyB2YWx1YXRpb25SZXF1ZXN0U2NoZW1hIH0gZnJvbSAnLi4vLi4vc2hhcmVkL3NjaGVtYXMvdmFsdWF0aW9uJ1xuaW1wb3J0IHsgbG9va3VwQXNzZXRWYWx1YXRpb24gfSBmcm9tICcuLi91dGlscy9hc3NldC12YWx1YXRpb24nXG5pbXBvcnQgeyByZXF1aXJlU2lnbmVkSW5Vc2VyIH0gZnJvbSAnLi4vdXRpbHMvcGxhbi1hdXRoJ1xuXG5leHBvcnQgZGVmYXVsdCBkZWZpbmVFdmVudEhhbmRsZXIoYXN5bmMgKGV2ZW50KSA9PiB7XG4gIHNldEhlYWRlcihldmVudCwgJ0NhY2hlLUNvbnRyb2wnLCAnbm8tc3RvcmUnKVxuICByZXF1aXJlU2lnbmVkSW5Vc2VyKGV2ZW50KVxuICBjb25zdCByZXF1ZXN0ID0gdmFsdWF0aW9uUmVxdWVzdFNjaGVtYS5zYWZlUGFyc2UoYXdhaXQgcmVhZEJvZHkoZXZlbnQpKVxuICBpZiAoIXJlcXVlc3Quc3VjY2Vzcykge1xuICAgIHRocm93IGNyZWF0ZUVycm9yKHsgc3RhdHVzQ29kZTogNDAwLCBzdGF0dXNNZXNzYWdlOiAnRW50ZXIgdmFsaWQgdmVoaWNsZSBvciBwcm9wZXJ0eSBkZXRhaWxzLicgfSlcbiAgfVxuICByZXR1cm4gbG9va3VwQXNzZXRWYWx1YXRpb24ocmVxdWVzdC5kYXRhKVxufSlcbiJdLCJmaWxlIjoiL3NlcnZlci9hcGkvdmFsdWF0aW9uLnBvc3QudHMifQ==
+
+//# vitestCache=W3siZmlsZSI6IjEiLCJpZCI6IjEiLCJ1cmwiOiIyIiwiaW1wb3J0ZWRVcmxzIjoiMyIsIm1hcHBpbmdzIjpmYWxzZSwiZGVwcyI6IjQiLCJkeW5hbWljRGVwcyI6IjUiLCJzdGF0aWNNb2NrcyI6bnVsbH0sIi9ob21lL3J1bm5lci93b3JrL3dvcnRod2hpbGUvd29ydGh3aGlsZS9zZXJ2ZXIvYXBpL3ZhbHVhdGlvbi5wb3N0LnRzIiwiL3NlcnZlci9hcGkvdmFsdWF0aW9uLnBvc3QudHMiLFtdLFsiNiIsIjciLCI4IiwiOSJdLFtdLCIvbm9kZV9tb2R1bGVzL2gzL2Rpc3QvaW5kZXgubWpzIiwiL3NoYXJlZC9zY2hlbWFzL3ZhbHVhdGlvbi50cyIsIi9zZXJ2ZXIvdXRpbHMvYXNzZXQtdmFsdWF0aW9uLnRzIiwiL3NlcnZlci91dGlscy9wbGFuLWF1dGgudHMiXQ==

@@ -11,7 +11,12 @@ vi.mock('ofetch', () => ({ $fetch: vi.fn() }))
 
 const car = { type: 'car', vin: '1HGCM82633A004352', mileage: 45_000, zip: '90210' } as const
 const property = { type: 'property', address: '123 Main St, Austin, TX 78701' } as const
-const decoded = { Results: [{ ModelYear: '2003', Make: 'HONDA', Model: 'Accord', Trim: 'EX' }] }
+const decoded = { Results: [
+  { Variable: 'Model Year', Value: '2003' },
+  { Variable: 'Make', Value: 'HONDA' },
+  { Variable: 'Model', Value: 'Accord' },
+  { Variable: 'Trim', Value: 'EX' },
+] }
 
 beforeEach(() => {
   vi.mocked($fetch).mockReset()
@@ -52,7 +57,7 @@ describe('provider valuation lookup', () => {
     })
     expect(new Date(result.fetchedAt!).toISOString()).toBe(result.fetchedAt)
     expect($fetch).toHaveBeenCalledTimes(2)
-    expect($fetch).toHaveBeenNthCalledWith(1, `https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValues/${car.vin}`, {
+    expect($fetch).toHaveBeenNthCalledWith(1, `https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVin/${car.vin}`, {
       query: { format: 'json' }, retry: 0, timeout: 5_000,
     })
     expect($fetch).toHaveBeenNthCalledWith(2, 'https://api.marketcheck.com/v2/predict/car/us/marketcheck', {
@@ -71,7 +76,14 @@ describe('provider valuation lookup', () => {
   })
 
   it('tolerates partial, invalid, and unavailable VIN decodes', async () => {
-    vi.mocked($fetch).mockResolvedValueOnce({ Results: [{ ErrorCode: '1,6', ModelYear: 'invalid', Make: 'HONDA', Model: '', Trim: null }] })
+    vi.mocked($fetch).mockResolvedValueOnce({ Results: [
+      { Variable: 'Error Code', Value: '1,6' },
+      { Variable: 'Error Text', Value: 'Invalid VIN; incomplete decode' },
+      { Variable: 'Model Year', Value: 'invalid' },
+      { Variable: 'Make', Value: 'HONDA' },
+      { Variable: 'Model', Value: '' },
+      { Variable: 'Trim', Value: null },
+    ] })
       .mockResolvedValueOnce({ marketcheck_price: 5000 })
     expect(await lookupAssetValuation(car)).toMatchObject({
       value: 500_000, vehicle: { vin: car.vin, make: 'HONDA', mileage: car.mileage, zip: car.zip },
@@ -79,6 +91,21 @@ describe('provider valuation lookup', () => {
     vi.mocked($fetch).mockRejectedValueOnce(new Error('VIN decode timeout')).mockResolvedValueOnce({ marketcheck_price: 6000 })
     expect(await lookupAssetValuation(car)).toMatchObject({ value: 600_000, vehicle: { vin: car.vin } })
     expect($fetch).toHaveBeenCalledTimes(4)
+  })
+
+  it.each([
+    null,
+    { Results: null },
+    { Results: { Make: 'HONDA' } },
+    { Results: [null, 'invalid', { Variable: null, Value: 'HONDA' }, { Variable: 'Make', Value: 123 }] },
+    { Results: [{ Variable: 'Error Code', Value: '7' }, { Variable: 'Error Text', Value: 'VIN could not be decoded' }] },
+  ])('ignores malformed or error-only decode responses %j without blocking valuation', async response => {
+    vi.mocked($fetch).mockResolvedValueOnce(response).mockResolvedValueOnce({ marketcheck_price: 5000 })
+    expect(await lookupAssetValuation(car)).toEqual({
+      value: 500_000, source: 'MarketCheck', fetchedAt: expect.any(String),
+      vehicle: { vin: car.vin, mileage: car.mileage, zip: car.zip },
+    })
+    expect($fetch).toHaveBeenCalledTimes(2)
   })
 
   it('gets a property price and subject attributes with only one authenticated request', async () => {
