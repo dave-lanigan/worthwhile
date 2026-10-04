@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowDownLeft, ArrowUpRight, Award, Briefcase, ChartNoAxesCombined, Check, ChevronRight, CircleAlert, Code, Copy, Dices, EllipsisVertical, Gift, House, Landmark, Layers, LoaderCircle, Pencil, Plus, RefreshCw, Trash2, TrendingUp, UserRound, Wallet } from 'lucide-vue-next'
+import { ArrowDownLeft, ArrowUpRight, Award, Briefcase, Car, ChartNoAxesCombined, Check, ChevronRight, CircleAlert, Code, Copy, Dices, EllipsisVertical, Gift, House, Landmark, Layers, LoaderCircle, Pencil, Plus, RefreshCw, Trash2, TrendingUp, UserRound, Wallet } from 'lucide-vue-next'
 import { DropdownMenuRoot, DropdownMenuTrigger, DropdownMenuPortal, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem } from 'reka-ui'
 import { emptyPlan, investmentAllocation, type CashFlow, type Category, type Investment, type Liability, type RealEstate } from '#shared/schemas/financial-plan'
 import { annualAmount, simulateNetWorth } from '#shared/utils/projection'
@@ -98,6 +98,7 @@ const monthlySurplus = computed(() => (forecast.value.result?.income ?? 0) - (fo
 const totalInvested = computed(() => draft.value.investments.reduce((total, item) => total + item.balance, 0))
 const totalDebt = computed(() => draft.value.liabilities.reduce((total, item) => total + item.balance, 0))
 const totalPropertyEquity = computed(() => draft.value.realEstate.reduce((total, item) => total + propertyEquity(item), 0))
+const physicalAssetLabel = computed(() => draft.value.realEstate.some(item => item.assetType === 'car') ? 'Asset equity' : 'Property equity')
 const categoryTotals = computed(() => ({ incomes: forecast.value.result?.income ?? 0, investments: totalInvested.value + totalPropertyEquity.value, expenses: forecast.value.result?.expenses ?? 0, liabilities: totalDebt.value }))
 const summaryMetrics = computed(() => {
   if (activeCategory.value === 'incomes') return {
@@ -115,7 +116,7 @@ const summaryMetrics = computed(() => {
   if (activeCategory.value === 'investments' && draft.value.realEstate.length) return {
     leftLabel: 'Current invested',
     leftValue: totalInvested.value,
-    rightLabel: 'Property equity after loans',
+    rightLabel: `${physicalAssetLabel.value} after loans`,
     rightValue: totalPropertyEquity.value,
   }
   if (activeCategory.value === 'investments') return {
@@ -155,13 +156,13 @@ function frequencyLabel(entry: CashFlow) {
 }
 
 function entryIcon(entry: CashFlow | Investment | Liability | RealEstate) {
-  if ('value' in entry) return House
+  if ('value' in entry) return entry.assetType === 'car' ? Car : House
   return categoryPresets[entry.name.trim().toLowerCase() as keyof typeof categoryPresets] ?? currentCategory.value.icon
 }
 
 function entryBadge(entry: CashFlow | Investment | Liability | RealEstate) {
   if ('frequency' in entry) return frequencyLabel(entry)
-  if ('value' in entry) return entry.loan ? 'Mortgaged' : 'Owned'
+  if ('value' in entry) return entry.assetType === 'car' ? 'Car' : entry.loan ? 'Mortgaged' : 'Owned'
   return 'annualRoi' in entry ? 'Investment' : entry.type === 'loan' ? 'Loan' : 'Debt'
 }
 
@@ -361,7 +362,7 @@ if (!guest) {
             <div v-if="forecast.result" class="chart-shell"><ClientOnly><NetWorthChart :points="forecast.result.points" :start="start" :simulation="simulation?.points" /><template #fallback><div class="chart-placeholder"><LoaderCircle class="spin" :size="20" /><span>Loading forecast</span></div></template></ClientOnly></div>
             <div v-else class="chart-placeholder">Forecast unavailable until the values are valid.</div>
             <div v-if="selected" class="month-breakdown">
-              <div><span>Cash</span><strong>{{ money(selected.cash) }}</strong></div><div><span>Investments</span><strong>{{ money(selected.invested) }}</strong></div><div><span>Property equity</span><strong data-testid="property-equity-projected">{{ money(selected.property - selected.propertyDebt) }}</strong></div><div><span>{{ selected.propertyDebt || draft.realEstate.length ? 'Other liabilities' : 'Liabilities' }}</span><strong>{{ money(selected.debt - selected.propertyDebt) }}</strong></div><div class="breakdown-worth"><span>Net worth</span><strong>{{ money(selected.netWorth) }}</strong></div>
+              <div><span>Cash</span><strong>{{ money(selected.cash) }}</strong></div><div><span>Investments</span><strong>{{ money(selected.invested) }}</strong></div><div><span>{{ physicalAssetLabel }}</span><strong data-testid="property-equity-projected">{{ money(selected.property - selected.propertyDebt) }}</strong></div><div><span>{{ selected.propertyDebt || draft.realEstate.length ? 'Other liabilities' : 'Liabilities' }}</span><strong>{{ money(selected.debt - selected.propertyDebt) }}</strong></div><div class="breakdown-worth"><span>Net worth</span><strong>{{ money(selected.netWorth) }}</strong></div>
             </div>
             </CardContent>
           </Card>
