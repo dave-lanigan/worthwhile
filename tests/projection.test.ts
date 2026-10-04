@@ -1,10 +1,17 @@
 import { describe, expect, it } from 'vitest'
-import { emptyPlan, financialPlanSchema } from '../shared/schemas/financial-plan'
+import { emptyPlan, examplePlan, financialPlanSchema } from '../shared/schemas/financial-plan'
 import { annualAmount, monthlyAmount, projectNetWorth, simulateNetWorth } from '../shared/utils/projection'
 import { AGE_NET_WORTH_PERCENTILE_THRESHOLDS } from '../shared/utils/age-wealth-percentile-thresholds'
 import { ageGroupNetWorthPercentile, ageOnDate, NET_WORTH_PERCENTILE_THRESHOLDS, netWorthPercentile, percentileLabel, wealthAgeBand } from '../shared/utils/wealth-percentile'
 
 describe('net worth projections', () => {
+  it('uses a monthly salary in the example plan', () => {
+    const salary = examplePlan().incomes.find(income => income.id === 'example-salary')!
+    expect(salary).toMatchObject({ amount: 780000, frequency: 'monthly' })
+    expect(monthlyAmount(salary)).toBe(780000)
+    expect(annualAmount(salary)).toBe(9360000)
+  })
+
   it('starts empty, includes today, and never mutates the input', () => {
     const plan = emptyPlan()
     const snapshot = JSON.stringify(plan)

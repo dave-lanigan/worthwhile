@@ -90,7 +90,7 @@ export function examplePlan(): FinancialPlan {
     startingCash: 825000,
     years: 10,
     incomes: [
-      { id: 'example-salary', name: 'Jim Doe salary', amount: 780000, frequency: 'annual' },
+      { id: 'example-salary', name: 'Jim Doe salary', amount: 780000, frequency: 'monthly' },
       { id: 'example-freelance', name: 'Jim Doe freelance work', amount: 65000, frequency: 'annual' },
     ],
     investments: [
