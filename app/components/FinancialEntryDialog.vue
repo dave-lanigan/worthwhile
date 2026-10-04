@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { cashFlowSchema, investmentAllocation, investmentSchema, liabilitySchema, realEstateSchema, type CashFlow, type Category, type Investment, type Liability, type RealEstate } from '#shared/schemas/financial-plan'
-import { monthlyLoanPayment } from '#shared/utils/loan'
+import { loanDetailsError, monthlyLoanPayment } from '#shared/utils/loan'
 import { money } from '@/lib/format'
 
-const props = defineProps<{ category: Category; entry?: CashFlow | Investment | Liability | RealEstate; investments: Investment[] }>()
+const props = defineProps<{ category: Category; entry?: CashFlow | Investment | Liability | RealEstate; investments: Investment[]; linkedAssetLoan?: boolean }>()
 const open = defineModel<boolean>('open', { default: false })
 const emit = defineEmits<{ save: [entry: CashFlow | Investment | Liability | RealEstate] }>()
 const singular: Record<Category, string> = { incomes: 'income', investments: 'investment', expenses: 'expense', liabilities: 'liability' }
-const form = reactive({ name: '', amount: '0', frequency: 'monthly', balance: '0', annualRoi: '5', allocation: '0', allocationMode: 'percentage', monthlyContribution: '0', apr: '0', payment: '0', type: 'debt', termYears: '5', propertyValue: '0', annualAppreciation: '3', loanBalance: '0', loanApr: '6', loanTermYears: '30', assetType: 'investment' })
+const form = reactive({ name: '', amount: '0', frequency: 'monthly', balance: '0', annualRoi: '5', allocation: '0', allocationMode: 'percentage', monthlyContribution: '0', apr: '0', payment: '0', type: 'debt', termYears: '5', propertyValue: '0', annualAppreciation: '3', loanBalance: '0', loanApr: '', loanTermYears: '', assetType: 'investment' })
 const error = ref('')
 const lookupMode = ref('manual')
 const valuation = ref<RealEstate['valuation']>()
@@ -21,9 +21,12 @@ const isPhysicalAsset = computed(() => isProperty.value || isCar.value)
 const entryLabel = computed(() => isCar.value ? 'car' : isProperty.value ? 'property' : singular[props.category])
 const attribution = computed(() => valuation.value ? `Estimate via ${valuation.value.source} · ${new Intl.DateTimeFormat('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' }).format(new Date(valuation.value.fetchedAt))}` : '')
 const availableAllocation = computed(() => Math.max(0, 100 - props.investments.filter(item => item.id !== props.entry?.id).reduce((total, item) => total + investmentAllocation(item, props.investments), 0)))
-const loanPayment = computed(() => monthlyLoanPayment(Math.round(Number(form.balance) * 100), Number(form.apr), Number(form.termYears) * 12))
+const loanInputError = computed(() => isPhysicalAsset.value && propertyLoanCents.value > 0
+  ? loanDetailsError(form.loanApr, form.loanTermYears)
+  : props.category === 'liabilities' && form.type === 'loan' ? loanDetailsError(form.apr, form.termYears) : '')
+const loanPayment = computed(() => loanInputError.value ? NaN : monthlyLoanPayment(Math.round(Number(form.balance) * 100), Number(form.apr), Math.round(Number(form.termYears) * 12)))
 const propertyLoanCents = computed(() => Math.round(Number(form.loanBalance) * 100) || 0)
-const propertyLoanPayment = computed(() => monthlyLoanPayment(propertyLoanCents.value, Number(form.loanApr), Math.round(Number(form.loanTermYears) * 12)))
+const propertyLoanPayment = computed(() => loanInputError.value ? NaN : monthlyLoanPayment(propertyLoanCents.value, Number(form.loanApr), Math.round(Number(form.loanTermYears) * 12)))
 const propertyEquity = computed(() => (Math.round(Number(form.propertyValue) * 100) || 0) - propertyLoanCents.value)
 const frequencies = [
   { value: 'monthly', label: 'Monthly' },
@@ -60,8 +63,8 @@ watch(open, (value) => {
     propertyValue: entry && 'value' in entry ? String(entry.value / 100) : '',
     annualAppreciation: entry && 'annualAppreciation' in entry ? String(entry.annualAppreciation) : '3',
     loanBalance: entry && 'value' in entry && entry.loan ? String(entry.loan.balance / 100) : '0',
-    loanApr: entry && 'value' in entry && entry.loan ? String(entry.loan.apr) : '6',
-    loanTermYears: entry && 'value' in entry && entry.loan ? String(entry.loan.termMonths / 12) : '30',
+    loanApr: entry && 'value' in entry && entry.loan ? String(entry.loan.apr) : '',
+    loanTermYears: entry && 'value' in entry && entry.loan ? String(entry.loan.termMonths / 12) : '',
   })
   updateViewport()
 })
@@ -126,11 +129,15 @@ onBeforeUnmount(() => {
 })
 
 function submit() {
+  if (loanInputError.value) {
+    error.value = loanInputError.value
+    return
+  }
   if (props.category === 'investments' && !isPhysicalAsset.value && form.allocationMode === 'percentage' && Number(form.allocation) > availableAllocation.value + 1e-8) {
     error.value = `Allocations cannot exceed 100%. Up to ${availableAllocation.value.toFixed(2)}% is available for this investment.`
     return
   }
-  const base = { id: props.entry?.id ?? crypto.randomUUID(), name: form.name }
+  const base = { id: props.entry?.id ?? crypto.randomUUID(), name: props.linkedAssetLoan ? form.name.slice(0, 100) : form.name }
   if (isPhysicalAsset.value) {
     const loan = propertyLoanCents.value > 0 ? { balance: propertyLoanCents.value, apr: Number(form.loanApr), termMonths: Math.round(Number(form.loanTermYears) * 12), payment: propertyLoanPayment.value } : undefined
     const vin = details.vin.trim().toUpperCase()
@@ -151,7 +158,7 @@ function submit() {
     ? { ...base, amount: Math.round(Number(form.amount) * 100), frequency: form.frequency }
     : props.category === 'investments'
       ? { ...base, balance: Math.round(Number(form.balance) * 100), annualRoi: Number(form.annualRoi), ...(form.allocationMode === 'monthly' ? { monthlyContribution: Math.round(Number(form.monthlyContribution) * 100) } : { allocation: Number(form.allocation) }) }
-      : { ...base, balance: Math.round(Number(form.balance) * 100), apr: Number(form.apr), payment: form.type === 'loan' ? loanPayment.value : Math.round(Number(form.payment) * 100), ...(form.type === 'loan' ? { type: 'loan' as const, termMonths: Number(form.termYears) * 12 } : {}) }
+      : { ...base, balance: Math.round(Number(form.balance) * 100), apr: Number(form.apr), payment: form.type === 'loan' ? loanPayment.value : Math.round(Number(form.payment) * 100), ...(form.type === 'loan' ? { type: 'loan' as const, termMonths: Math.round(Number(form.termYears) * 12) } : {}) }
   const parsed = schema.safeParse(value)
   if (!parsed.success) {
     error.value = parsed.error.issues.map(issue => `${issue.path.join(' ')}: ${issue.message}`).join('. ')
@@ -170,7 +177,8 @@ function submit() {
         <DrawerDescription id="financial-entry-description">{{ category === 'incomes' ? 'Take-home income, after taxes.' : isCar ? 'Enter a value or look up an editable estimate for your car.' : isProperty ? 'Market value and any loan secured against it. Equity grows as the loan is repaid.' : category === 'investments' ? 'Current value and expected effective annual return.' : category === 'liabilities' ? 'Outstanding debt and its scheduled repayment.' : 'Recurring spending, excluding debt payments entered under liabilities.' }}</DrawerDescription>
       </DrawerHeader>
       <form id="financial-entry-form" class="entry-form income-drawer-body" @submit.prevent="submit">
-        <div class="field"><Label for="entry-name">Name</Label><Input id="entry-name" v-model="form.name" required maxlength="100" autocomplete="off" :placeholder="isCar ? 'e.g. Family car' : isProperty ? 'e.g. Family home' : category === 'investments' ? 'e.g. Index fund' : category === 'incomes' ? 'e.g. Salary' : category === 'expenses' ? 'e.g. Housing' : 'e.g. Student loan'" /></div>
+        <div v-if="linkedAssetLoan" class="field"><Label as="span">Linked asset loan</Label><span>{{ form.name }}</span><span class="muted">Rename the asset in Assets to change this loan’s name.</span></div>
+        <div v-else class="field"><Label for="entry-name">Name</Label><Input id="entry-name" v-model="form.name" required maxlength="100" autocomplete="off" :placeholder="isCar ? 'e.g. Family car' : isProperty ? 'e.g. Family home' : category === 'investments' ? 'e.g. Index fund' : category === 'incomes' ? 'e.g. Salary' : category === 'expenses' ? 'e.g. Housing' : 'e.g. Student loan'" /></div>
         <div v-if="category === 'investments'" class="field"><Label for="entry-asset-type">Asset type</Label><Select v-model="form.assetType" :disabled="!!entry"><SelectTrigger id="entry-asset-type" class="w-full"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="investment">Investment account</SelectItem><SelectItem value="property">Real estate</SelectItem><SelectItem value="car">Car</SelectItem></SelectContent></Select></div>
         <template v-if="isPhysicalAsset">
           <Tabs v-model="lookupMode">
@@ -234,6 +242,7 @@ function submit() {
           </fieldset>
           <fieldset class="entry-fieldset">
             <legend>Loan</legend>
+            <p class="muted">Appears in Debt when this asset is saved. Monthly payments are calculated automatically.</p>
             <div class="field"><Label for="entry-loan-balance">Outstanding balance (USD)</Label><Input id="entry-loan-balance" v-model="form.loanBalance" type="number" min="0" max="1000000000000" step="0.01" required inputmode="decimal" /><span class="muted">Enter 0 if the {{ isCar ? 'car' : 'property' }} is owned outright.</span></div>
             <div v-if="propertyLoanCents > 0" class="form-columns">
               <div class="field"><Label for="entry-loan-apr">Interest APR (%)</Label><Input id="entry-loan-apr" v-model="form.loanApr" type="number" min="0" max="1000" step="0.01" required inputmode="decimal" /></div>
@@ -256,16 +265,16 @@ function submit() {
             </Tabs>
           </template>
           <template v-else>
-            <div class="field"><Label for="entry-type">Liability type</Label><Select v-model="form.type"><SelectTrigger id="entry-type" class="w-full"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="debt">Other debt</SelectItem><SelectItem value="loan">Loan</SelectItem></SelectContent></Select></div>
+            <div v-if="!linkedAssetLoan" class="field"><Label for="entry-type">Liability type</Label><Select v-model="form.type"><SelectTrigger id="entry-type" class="w-full"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="debt">Other debt</SelectItem><SelectItem value="loan">Loan</SelectItem></SelectContent></Select></div>
             <div class="form-columns">
               <div class="field"><Label for="entry-apr">Interest APR (%)</Label><Input id="entry-apr" v-model="form.apr" type="number" min="0" max="1000" step="0.01" required inputmode="decimal" /></div>
               <div v-if="form.type === 'loan'" class="field"><Label for="entry-term">Loan duration (years)</Label><Input id="entry-term" v-model="form.termYears" type="number" min="0.08333333333333333" max="40" step="any" required inputmode="decimal" /></div>
               <div v-else class="field"><Label for="entry-payment">Monthly payment (USD)</Label><Input id="entry-payment" v-model="form.payment" type="number" min="0" max="1000000000000" step="0.01" required inputmode="decimal" /></div>
             </div>
-            <p v-if="form.type === 'loan' && Number.isFinite(loanPayment)" class="muted" role="status">Calculated monthly payment: {{ money(loanPayment, true) }}</p>
+            <p v-if="form.type === 'loan'" class="muted" role="status">Calculated monthly payment: {{ Number.isFinite(loanPayment) ? money(loanPayment, true) : '—' }}</p>
           </template>
         </template>
-        <p v-if="error" class="form-error" role="alert">{{ error }}</p>
+        <p v-if="loanInputError || error" class="form-error" role="alert">{{ loanInputError || error }}</p>
       </form>
       <DrawerFooter class="income-drawer-footer">
         <Button type="submit" form="financial-entry-form" class="w-full">{{ entry ? 'Apply changes' : `Add ${entryLabel}` }}</Button>

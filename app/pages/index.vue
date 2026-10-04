@@ -3,6 +3,7 @@ import { ArrowDownLeft, ArrowUpRight, Award, Briefcase, Car, ChartNoAxesCombined
 import { DropdownMenuRoot, DropdownMenuTrigger, DropdownMenuPortal, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem } from 'reka-ui'
 import { emptyPlan, investmentAllocation, type CashFlow, type Category, type Investment, type Liability, type RealEstate } from '#shared/schemas/financial-plan'
 import { annualAmount, simulateNetWorth } from '#shared/utils/projection'
+import { linkedAssetLoans } from '#shared/utils/asset-loans'
 import { estimateTaxInputs, stateFromAddress, type TaxInputs } from '#shared/utils/taxes'
 import { ageGroupNetWorthPercentile, netWorthPercentile, percentileLabel, WEALTH_AGE_BANDS } from '#shared/utils/wealth-percentile'
 import { money, monthLabel } from '@/lib/format'
@@ -67,8 +68,11 @@ const categoryPresets = {
   'executive incentive': Gift,
 }
 const currentCategory = computed(() => categories.find(category => category.key === activeCategory.value)!)
-const entries = computed<(CashFlow | Investment | Liability | RealEstate)[]>(() => activeCategory.value === 'investments' ? [...draft.value.investments, ...draft.value.realEstate] : draft.value[activeCategory.value])
-const entryCount = (category: Category) => draft.value[category].length + (category === 'investments' ? draft.value.realEstate.length : 0)
+const assetLoans = computed(() => linkedAssetLoans(draft.value.realEstate))
+const debts = computed(() => [...draft.value.liabilities, ...assetLoans.value])
+const entries = computed<(CashFlow | Investment | Liability | RealEstate)[]>(() => activeCategory.value === 'investments' ? [...draft.value.investments, ...draft.value.realEstate] : activeCategory.value === 'liabilities' ? debts.value : draft.value[activeCategory.value])
+const entryCount = (category: Category) => draft.value[category].length + (category === 'investments' ? draft.value.realEstate.length : category === 'liabilities' ? assetLoans.value.length : 0)
+const editingAssetLoan = computed(() => !!editing.value && 'assetId' in editing.value)
 const first = computed(() => forecast.value.result?.points[0])
 const selected = computed(() => forecast.value.result?.points[Math.min(selectedMonth.value, draft.value.years * 12)] ?? first.value)
 function comparisonDate(month: number): Date {
@@ -96,7 +100,7 @@ const selectedPeriod = computed(() => {
 const monthlyPayments = computed(() => forecast.value.result?.points[1]?.payments ?? 0)
 const monthlySurplus = computed(() => (forecast.value.result?.income ?? 0) - (forecast.value.result?.expenses ?? 0) - monthlyPayments.value)
 const totalInvested = computed(() => draft.value.investments.reduce((total, item) => total + item.balance, 0))
-const totalDebt = computed(() => draft.value.liabilities.reduce((total, item) => total + item.balance, 0))
+const totalDebt = computed(() => debts.value.reduce((total, item) => total + item.balance, 0))
 const totalPropertyEquity = computed(() => draft.value.realEstate.reduce((total, item) => total + propertyEquity(item), 0))
 const physicalAssetLabel = computed(() => draft.value.realEstate.some(item => item.assetType === 'car') ? 'Asset equity' : 'Property equity')
 const categoryTotals = computed(() => ({ incomes: forecast.value.result?.income ?? 0, investments: totalInvested.value + totalPropertyEquity.value, expenses: forecast.value.result?.expenses ?? 0, liabilities: totalDebt.value }))
@@ -129,7 +133,7 @@ const summaryMetrics = computed(() => {
     leftLabel: 'Current debt',
     leftValue: totalDebt.value,
     rightLabel: 'Monthly payments',
-    rightValue: draft.value.liabilities.reduce((total, liability) => total + liability.payment, 0),
+    rightValue: debts.value.reduce((total, liability) => total + liability.payment, 0),
   }
 })
 const growth = computed(() => (selected.value?.netWorth ?? 0) - (first.value?.netWorth ?? 0))
@@ -196,6 +200,11 @@ function edit(entry?: CashFlow | Investment | Liability | RealEstate) {
 }
 const editingIncome = computed(() => editing.value && 'frequency' in editing.value ? editing.value : undefined)
 function storeEntry(entry: CashFlow | Investment | Liability | RealEstate) {
+  if (editingAssetLoan.value && editing.value && 'assetId' in editing.value && 'apr' in entry && entry.termMonths !== undefined) {
+    const asset = draft.value.realEstate.find(item => item.id === editing.value!.id)
+    if (asset) asset.loan = { balance: entry.balance, apr: entry.apr, termMonths: entry.termMonths, payment: entry.payment }
+    return
+  }
   const items = ('value' in entry ? draft.value.realEstate : draft.value[activeCategory.value]) as (CashFlow | Investment | Liability | RealEstate)[]
   if (activeCategory.value === 'investments' && !('value' in entry)) preserveAllocations()
   const index = items.findIndex(item => item.id === entry.id)
@@ -207,6 +216,11 @@ function confirmDelete(entry: CashFlow | Investment | Liability | RealEstate) {
   deleteOpen.value = true
 }
 function removeEntry() {
+  if (deleting.value && 'assetId' in deleting.value) {
+    const asset = draft.value.realEstate.find(item => item.id === deleting.value!.id)
+    if (asset) delete asset.loan
+    return
+  }
   const property = !!deleting.value && 'value' in deleting.value
   if (activeCategory.value === 'investments' && !property) preserveAllocations()
   const items = (property ? draft.value.realEstate : draft.value[activeCategory.value]) as (CashFlow | Investment | Liability | RealEstate)[]
@@ -436,7 +450,7 @@ if (!guest) {
         </template>
       </main>
       <IncomeEntryDrawer v-if="activeCategory === 'incomes'" v-model:open="editorOpen" :entry="editingIncome" @save="storeEntry" />
-      <FinancialEntryDialog v-else v-model:open="editorOpen" :category="activeCategory" :entry="editing" :investments="draft.investments" @save="storeEntry" />
+      <FinancialEntryDialog v-else v-model:open="editorOpen" :category="activeCategory" :entry="editing" :linked-asset-loan="editingAssetLoan" :investments="draft.investments" @save="storeEntry" />
       <TaxEstimateDialog v-model:open="taxDialogOpen" v-model:inputs="taxInputs" :result="taxEstimate" />
       <Dialog v-model:open="profileDialogOpen">
         <DialogContent class="entry-dialog">
@@ -449,7 +463,7 @@ if (!guest) {
           </form>
         </DialogContent>
       </Dialog>
-      <AlertDialog v-model:open="deleteOpen"><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete {{ deleting?.name }}?</AlertDialogTitle><AlertDialogDescription>This removes the entry from your forecast.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction @click="removeEntry"><Trash2 :size="15" />Delete entry</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
+      <AlertDialog v-model:open="deleteOpen"><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete {{ deleting?.name }}?</AlertDialogTitle><AlertDialogDescription>{{ deleting && 'assetId' in deleting ? 'This removes the linked loan. The asset stays in your forecast.' : 'This removes the entry from your forecast.' }}</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction @click="removeEntry"><Trash2 :size="15" />Delete entry</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
       <AlertDialog v-model:open="reloadOpen"><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Reload the saved plan?</AlertDialogTitle><AlertDialogDescription>Unsaved changes in this tab will be replaced with the latest saved version.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Keep editing</AlertDialogCancel><AlertDialogAction @click="reload"><RefreshCw :size="15" />Reload plan</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
       <AlertDialog v-model:open="clearOpen"><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Clear your entire plan?</AlertDialogTitle><AlertDialogDescription>This permanently removes all financial entries and resets your starting cash. Your profile details stay saved.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Keep plan</AlertDialogCancel><AlertDialogAction @click="clear"><Trash2 :size="15" />Clear all</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
     </div>
