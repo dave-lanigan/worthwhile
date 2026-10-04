@@ -67,24 +67,30 @@ describe('provider valuation lookup', () => {
 
   it.each([
     { predicted_price: 12_345.67, predicted_price_lower_bound: 11_000, predicted_price_upper_bound: 14_000, active_set_comparables: [] },
+    { price: 12_345.67 },
     { success: true, service: 'price_prediction', data: { marketcheck_price: 12_345.67, msrp: 30_000, comparables: { num_found: 0, listings: [] } } },
     { success: true, service: 'price_prediction', data: { predicted_price: 12_345.67 } },
+    { success: true, service: 'price_prediction', data: { price: 12_345.67 } },
   ])('supports prediction response shapes used by official provider parsers', async prediction => {
     vi.mocked($fetch).mockResolvedValueOnce(decoded).mockResolvedValueOnce(prediction)
     expect(await lookupAssetValuation(car)).toMatchObject({ value: 1_234_567, source: 'MarketCheck' })
     expect($fetch).toHaveBeenCalledTimes(2)
   })
 
-  it('uses documented price-model defaults for VIN-only requests without inventing decoded mileage', async () => {
+  it('returns documented price-model assumptions for stable VIN-only refreshes', async () => {
     vi.mocked($fetch).mockResolvedValueOnce(decoded).mockResolvedValueOnce({ predicted_price: 12_000 })
     const result = await lookupAssetValuation({ type: 'car', vin: car.vin })
     expect(result).toMatchObject({ value: 1_200_000, vehicle: { vin: car.vin, make: 'HONDA' } })
-    expect(result.vehicle?.mileage).toBeUndefined()
-    expect(result.vehicle?.zip).toBeUndefined()
+    expect(result.vehicle?.mileage).toBe(50_000)
+    expect(result.vehicle?.zip).toBe('50501')
     expect($fetch).toHaveBeenNthCalledWith(2, 'https://api.marketcheck.com/v2/predict/car/us/marketcheck_price/comparables', {
       query: { api_key: 'test-marketcheck-key', vin: car.vin, miles: 50_000, zip: '50501', dealer_type: 'independent' },
       retry: 0, timeout: 5_000,
     })
+    vi.mocked($fetch).mockResolvedValueOnce(decoded).mockResolvedValueOnce({ predicted_price: 12_000 })
+    await lookupAssetValuation({ type: 'car', vin: car.vin, mileage: result.vehicle?.mileage, zip: result.vehicle?.zip })
+    expect(vi.mocked($fetch).mock.calls[3]).toEqual(vi.mocked($fetch).mock.calls[1])
+    expect($fetch).toHaveBeenCalledTimes(4)
   })
 
   it.each([

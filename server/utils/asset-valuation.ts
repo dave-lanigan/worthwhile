@@ -28,7 +28,7 @@ function validFields(values: Record<string, unknown>, shape: Record<string, z.Zo
 }
 
 async function valueCar(request: Extract<ValuationRequest, { type: 'car' }>): Promise<ValuationResult> {
-  const vehicle: NonNullable<ValuationResult['vehicle']> = { vin: request.vin, mileage: request.mileage, zip: request.zip }
+  const vehicle: NonNullable<ValuationResult['vehicle']> = { vin: request.vin, mileage: request.mileage ?? 50_000, zip: request.zip ?? '50501' }
   try {
     const decoded = object(await $fetch<unknown>(`https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVin/${request.vin}`, {
       ...fetchOptions,
@@ -60,7 +60,7 @@ async function valueCar(request: Extract<ValuationRequest, { type: 'car' }>): Pr
     }))
     if (result.success === false || result.error) return fallback
     const prediction = result.data === undefined ? result : object(result.data)
-    const value = cents(prediction.marketcheck_price) ?? cents(prediction.predicted_price)
+    const value = cents(prediction.marketcheck_price) ?? cents(prediction.price) ?? cents(prediction.predicted_price)
     return value === undefined ? fallback : { vehicle, value, source: 'MarketCheck', fetchedAt: new Date().toISOString() }
   } catch {
     return fallback
