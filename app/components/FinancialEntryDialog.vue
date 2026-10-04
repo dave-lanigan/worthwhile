@@ -217,28 +217,16 @@ function submit() {
               <div class="field"><Label for="entry-appreciation">Annual appreciation (%)</Label><Input id="entry-appreciation" v-model="form.annualAppreciation" type="number" min="-100" max="1000" step="0.01" required inputmode="decimal" /></div>
             </div>
           </fieldset>
-          <fieldset class="entry-fieldset">
+          <fieldset v-if="isCar" class="entry-fieldset">
             <legend>Optional details</legend>
-            <template v-if="isCar">
-              <div class="form-columns">
-                <div class="field"><Label for="entry-car-year">Year</Label><Input id="entry-car-year" v-model="details.year" type="number" min="1886" max="2100" step="1" inputmode="numeric" /></div>
-                <div class="field"><Label for="entry-car-make">Make</Label><Input id="entry-car-make" v-model="details.make" maxlength="100" /></div>
-              </div>
-              <div class="form-columns">
-                <div class="field"><Label for="entry-car-model">Model</Label><Input id="entry-car-model" v-model="details.model" maxlength="100" /></div>
-                <div class="field"><Label for="entry-car-trim">Trim</Label><Input id="entry-car-trim" v-model="details.trim" maxlength="100" /></div>
-              </div>
-            </template>
-            <template v-else>
-              <div class="form-columns">
-                <div class="field"><Label for="entry-beds">Bedrooms</Label><Input id="entry-beds" v-model="details.bedrooms" type="number" min="0" step="1" inputmode="numeric" /></div>
-                <div class="field"><Label for="entry-baths">Bathrooms</Label><Input id="entry-baths" v-model="details.bathrooms" type="number" min="0" step="0.5" inputmode="decimal" /></div>
-              </div>
-              <div class="form-columns">
-                <div class="field"><Label for="entry-sqft">Square footage</Label><Input id="entry-sqft" v-model="details.squareFootage" type="number" min="0" step="1" inputmode="numeric" /></div>
-                <div class="field"><Label for="entry-year-built">Year built</Label><Input id="entry-year-built" v-model="details.yearBuilt" type="number" min="1000" max="2100" step="1" inputmode="numeric" /></div>
-              </div>
-            </template>
+            <div class="form-columns">
+              <div class="field"><Label for="entry-car-year">Year</Label><Input id="entry-car-year" v-model="details.year" type="number" min="1886" max="2100" step="1" inputmode="numeric" /></div>
+              <div class="field"><Label for="entry-car-make">Make</Label><Input id="entry-car-make" v-model="details.make" maxlength="100" /></div>
+            </div>
+            <div class="form-columns">
+              <div class="field"><Label for="entry-car-model">Model</Label><Input id="entry-car-model" v-model="details.model" maxlength="100" /></div>
+              <div class="field"><Label for="entry-car-trim">Trim</Label><Input id="entry-car-trim" v-model="details.trim" maxlength="100" /></div>
+            </div>
           </fieldset>
           <fieldset class="entry-fieldset">
             <legend>Loan</legend>

@@ -219,8 +219,10 @@ test('address lookup preserves the linked loan and editable estimate', async ({ 
   expect(calls).toBe(0)
   await page.getByRole('button', { name: 'Look up estimate', exact: true }).click()
   await expect(page.getByLabel('Market value (USD)')).toHaveValue('400000')
-  await expect(page.getByLabel('Bedrooms', { exact: true })).toHaveValue('3')
-  await expect(page.getByLabel('Year built', { exact: true })).toHaveValue('1998')
+  await expect(page.getByText('Optional details', { exact: true })).toHaveCount(0)
+  for (const label of ['Bedrooms', 'Bathrooms', 'Square footage', 'Year built']) {
+    await expect(page.getByLabel(label, { exact: true })).toHaveCount(0)
+  }
   await page.getByLabel('Name', { exact: true }).fill('Estimated home')
   await page.getByLabel('Market value (USD)').fill('390000')
   await page.getByLabel('Outstanding balance (USD)').fill('200000')
