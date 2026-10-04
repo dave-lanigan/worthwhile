@@ -102,7 +102,7 @@ test('responsive financial workflows keep forms and actions reachable', async ({
     await expect(page.getByTestId('current-worth')).toHaveText('$0')
     const cases = [
       { category: 'Income', singular: 'income', fields: { 'Amount (USD)': '1200' } },
-      { category: 'Invest', singular: 'investment', fields: { 'Current value (USD)': '100', 'Annual ROI (%)': '5' } },
+      { category: 'Assets', singular: 'investment', fields: { 'Current value (USD)': '100', 'Annual ROI (%)': '5' } },
       { category: 'Expenses', singular: 'expense', fields: { 'Amount (USD)': '200' } },
       { category: 'Debt', singular: 'liability', fields: { 'Outstanding balance (USD)': '100', 'Interest APR (%)': '1', 'Monthly payment (USD)': '10' } },
     ]

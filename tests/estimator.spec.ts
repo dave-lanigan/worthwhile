@@ -23,7 +23,7 @@ test.beforeAll(async () => { await clerkSetup() })
 
 async function addEntry(page: Page, category: string, name: string, fields: Record<string, string>) {
   await page.getByRole('tab', { name: new RegExp(`^${category}`) }).click()
-  const singular = category === 'Debt' ? 'liability' : category === 'Expenses' ? 'expense' : category === 'Invest' ? 'investment' : 'income'
+  const singular = category === 'Debt' ? 'liability' : category === 'Expenses' ? 'expense' : category === 'Assets' ? 'investment' : 'income'
   await page.getByRole('button', { name: `Add ${singular}`, exact: true }).click()
   await page.getByLabel('Name', { exact: true }).fill(name)
   for (const [label, value] of Object.entries(fields)) await page.getByLabel(label, { exact: true }).fill(value)
@@ -91,11 +91,11 @@ test('edit finances, inspect the chart, autosave and reload', async ({ page }, t
   await setStartingCash(page, '5000')
   await addEntry(page, 'Income', 'Salary', { 'Amount (USD)': '5000' })
   await addEntry(page, 'Expenses', 'Housing', { 'Amount (USD)': '2000' })
-  await addEntry(page, 'Invest', 'Index fund', { 'Current value (USD)': '10000', 'Annual ROI (%)': '6' })
+  await addEntry(page, 'Assets', 'Index fund', { 'Current value (USD)': '10000', 'Annual ROI (%)': '6' })
   await addEntry(page, 'Debt', 'Student loan', { 'Outstanding balance (USD)': '1200', 'Interest APR (%)': '0', 'Monthly payment (USD)': '100' })
   await expect(page.getByTestId('current-worth')).toHaveText('$13,800')
   const initialForecast = await page.getByTestId('projected-worth').textContent()
-  await page.getByRole('tab', { name: /^Invest/ }).click()
+  await page.getByRole('tab', { name: /^Assets/ }).click()
   await page.getByRole('button', { name: 'Edit Index fund', exact: true }).click()
   await page.getByLabel('Annual ROI (%)', { exact: true }).fill('9')
   await page.getByRole('button', { name: 'Apply changes' }).click()
@@ -116,13 +116,13 @@ test('edit finances, inspect the chart, autosave and reload', async ({ page }, t
   await page.getByRole('tab', { name: 'Annual table', exact: true }).click()
   await expect(page.locator('.annual-table tbody tr')).toHaveCount(21)
   await page.getByRole('tab', { name: 'Chart', exact: true }).click()
-  await page.getByRole('tab', { name: /^Invest/ }).click()
+  await page.getByRole('tab', { name: /^Assets/ }).click()
   await page.getByLabel('Selected forecast month').fill('120')
   await page.screenshot({ path: testInfo.outputPath(`${testInfo.project.name}-forecast.png`), fullPage: true })
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
   expect(errors).toEqual([])
 
-  for (const [category, name] of [['Income', 'Salary'], ['Expenses', 'Housing'], ['Invest', 'Index fund'], ['Debt', 'Student loan']]) {
+  for (const [category, name] of [['Income', 'Salary'], ['Expenses', 'Housing'], ['Assets', 'Index fund'], ['Debt', 'Student loan']]) {
     await page.getByRole('tab', { name: new RegExp(`^${category}`) }).click()
     await page.getByRole('button', { name: `Edit ${name}`, exact: true }).click()
     await page.getByLabel('Name', { exact: true }).fill(`${name} revised`)
@@ -165,7 +165,7 @@ test('validates inputs and protects the local API', async ({ page, request }) =>
   expect((await request.put('/api/plan', { data: current, headers: { Origin: 'https://example.com' } })).status()).toBe(403)
   expect((await request.get('/api/plan', { headers: { Host: 'example.com' } })).status()).toBe(403)
   await page.goto('/')
-  await page.getByRole('tab', { name: /^Invest/ }).click()
+  await page.getByRole('tab', { name: /^Assets/ }).click()
   await page.getByRole('button', { name: 'Add investment', exact: true }).click()
   await page.getByLabel('Name', { exact: true }).fill('A very long investment name that must wrap without overlapping controls or making the page wider')
   await page.getByLabel('Current value (USD)', { exact: true }).fill('100')
@@ -189,8 +189,8 @@ test('validates inputs and protects the local API', async ({ page, request }) =>
 test('adjusts investment allocations and follows the selected projection month', async ({ page }) => {
   await page.goto('/')
   await addEntry(page, 'Income', 'Monthly pay', { 'Amount (USD)': '1000' })
-  await addEntry(page, 'Invest', 'Growth fund', { 'Current value (USD)': '0', 'Annual ROI (%)': '12', 'Surplus allocation (%)': '60' })
-  await addEntry(page, 'Invest', 'Reserve fund', { 'Current value (USD)': '0', 'Annual ROI (%)': '0', 'Surplus allocation (%)': '25' })
+  await addEntry(page, 'Assets', 'Growth fund', { 'Current value (USD)': '0', 'Annual ROI (%)': '12', 'Surplus allocation (%)': '60' })
+  await addEntry(page, 'Assets', 'Reserve fund', { 'Current value (USD)': '0', 'Annual ROI (%)': '0', 'Surplus allocation (%)': '25' })
   await expect(page.getByText('15.00% of surplus stays in cash', { exact: true })).toBeVisible()
   await page.getByLabel('Selected forecast month').fill('1')
   await expect(page.getByTestId('projected-worth')).toHaveText('$1,000')
@@ -213,7 +213,7 @@ test('adjusts investment allocations and follows the selected projection month',
   await expect(page.getByText('25.00% of surplus stays in cash', { exact: true })).toBeVisible()
   await expect(page.getByTestId('save-status')).toHaveText('')
   await page.reload()
-  await page.getByRole('tab', { name: /^Invest/ }).click()
+  await page.getByRole('tab', { name: /^Assets/ }).click()
   await expect(page.locator('.ledger-entry-card').filter({ hasText: 'Growth fund' })).toContainText('50%')
   await expect(page.locator('.ledger-entry-card').filter({ hasText: 'Reserve fund' })).toContainText('25%')
   await page.getByLabel('Selected forecast month').fill('0')
@@ -225,7 +225,7 @@ test('adjusts investment allocations and follows the selected projection month',
 test('creates monthly dollar targets and switches allocation modes without losing settings', async ({ page, request }, testInfo) => {
   await page.goto('/')
   await addEntry(page, 'Income', 'Pay', { 'Amount (USD)': '1000' })
-  await addEntry(page, 'Invest', 'Fund', { 'Current value (USD)': '0', 'Annual ROI (%)': '0', 'Surplus allocation (%)': '50' })
+  await addEntry(page, 'Assets', 'Fund', { 'Current value (USD)': '0', 'Annual ROI (%)': '0', 'Surplus allocation (%)': '50' })
   for (const [name, amount] of [['HSA', '250.50'], ['401k', '400']]) {
     await page.getByRole('button', { name: 'Add investment', exact: true }).click()
     await page.getByLabel('Name', { exact: true }).fill(name!)
@@ -251,7 +251,7 @@ test('creates monthly dollar targets and switches allocation modes without losin
     expect.objectContaining({ name: 'Fund', allocation: 50 }),
   ]))
   await page.reload()
-  await page.getByRole('tab', { name: /^Invest/ }).click()
+  await page.getByRole('tab', { name: /^Assets/ }).click()
   await page.getByRole('button', { name: 'Edit HSA', exact: true }).click()
   await expect(page.getByRole('tab', { name: '$ per month', exact: true })).toHaveAttribute('aria-selected', 'true')
   await expect(page.getByLabel('Monthly contribution (USD)', { exact: true })).toHaveValue('250.5')

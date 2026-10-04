@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 
 async function openAsset(page: Page, type: 'Car' | 'Real estate') {
-  await page.getByRole('tab', { name: /^Invest/ }).click()
+  await page.getByRole('tab', { name: /^Assets/ }).click()
   await page.getByRole('button', { name: 'Add investment', exact: true }).click()
   await page.getByLabel('Asset type', { exact: true }).click()
   await page.getByRole('option', { name: type, exact: true }).click()

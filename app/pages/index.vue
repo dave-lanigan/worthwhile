@@ -56,7 +56,7 @@ const portfolioVolatility = ref(10)
 const portfolioPresets = { conservative: { mean: 5, volatility: 10 }, aggressive: { mean: 8, volatility: 18 } }
 const categories = [
   { key: 'incomes' as const, label: 'Income', singular: 'income', icon: ArrowDownLeft },
-  { key: 'investments' as const, label: 'Invest', singular: 'investment', icon: TrendingUp },
+  { key: 'investments' as const, label: 'Assets', singular: 'investment', icon: TrendingUp },
   { key: 'expenses' as const, label: 'Expenses', singular: 'expense', icon: ArrowUpRight },
   { key: 'liabilities' as const, label: 'Debt', singular: 'liability', icon: Landmark },
 ]
