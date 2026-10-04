@@ -38,6 +38,14 @@ it('rejects invalid VINs locally with zero requests', async () => {
   expect(state.loading.value).toBe(false)
 })
 
+it('allows a VIN-only lookup without requiring optional mileage or ZIP', async () => {
+  fetch.mockResolvedValue({ vehicle: { vin: car.vin, mileage: 50000, zip: '50501' } })
+  const state = useAssetValuation()
+  await state.lookup({ type: 'car', vin: car.vin })
+  expect(fetch).toHaveBeenCalledTimes(1)
+  expect(fetch).toHaveBeenCalledWith('/api/valuation', expect.objectContaining({ body: { type: 'car', vin: car.vin } }))
+})
+
 it('prevents overlapping lookups and ignores results after cancellation', async () => {
   let finish!: (result: ValuationResult) => void
   fetch.mockImplementation(() => new Promise<ValuationResult>(resolve => { finish = resolve }))

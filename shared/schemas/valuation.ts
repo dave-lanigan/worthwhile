@@ -31,7 +31,7 @@ export const assetValuationSchema = z.object({
 })
 
 export const valuationRequestSchema = z.discriminatedUnion('type', [
-  z.object({ type: z.literal('car'), vin: vinSchema, mileage: mileageSchema, zip: zipSchema }),
+  z.object({ type: z.literal('car'), vin: vinSchema, mileage: mileageSchema.optional(), zip: zipSchema.optional() }),
   z.object({ type: z.literal('property'), address: z.string().trim().min(3).max(300) }),
 ])
 

@@ -26,12 +26,11 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllEnvs())
 
 describe('valuation schemas', () => {
-  it('normalizes valid VINs and requires mileage and ZIP', () => {
+  it('normalizes valid VINs and validates optional mileage and ZIP', () => {
     expect(valuationRequestSchema.parse({ ...car, vin: ` ${car.vin.toLowerCase()} ` })).toMatchObject({ vin: car.vin })
-    expect(valuationRequestSchema.safeParse({ type: 'car', vin: car.vin, zip: car.zip }).success).toBe(false)
+    expect(valuationRequestSchema.parse({ type: 'car', vin: car.vin })).toEqual({ type: 'car', vin: car.vin })
     expect(valuationRequestSchema.safeParse({ ...car, mileage: -1 }).success).toBe(false)
     expect(valuationRequestSchema.safeParse({ ...car, zip: '9021' }).success).toBe(false)
-    expect(valuationRequestSchema.safeParse({ ...car, zip: undefined }).success).toBe(false)
     expect(valuationRequestSchema.safeParse({ ...property, address: '  ' }).success).toBe(false)
   })
 
@@ -60,10 +59,46 @@ describe('provider valuation lookup', () => {
     expect($fetch).toHaveBeenNthCalledWith(1, `https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVin/${car.vin}`, {
       query: { format: 'json' }, retry: 0, timeout: 5_000,
     })
-    expect($fetch).toHaveBeenNthCalledWith(2, 'https://api.marketcheck.com/v2/predict/car/us/marketcheck', {
-      query: { api_key: 'test-marketcheck-key', vin: car.vin, mileage: car.mileage, zip: car.zip, dealer_type: 'independent' },
+    expect($fetch).toHaveBeenNthCalledWith(2, 'https://api.marketcheck.com/v2/predict/car/us/marketcheck_price/comparables', {
+      query: { api_key: 'test-marketcheck-key', vin: car.vin, miles: car.mileage, zip: car.zip, dealer_type: 'independent' },
       retry: 0, timeout: 5_000,
     })
+  })
+
+  it.each([
+    { predicted_price: 12_345.67, predicted_price_lower_bound: 11_000, predicted_price_upper_bound: 14_000, active_set_comparables: [] },
+    { success: true, service: 'price_prediction', data: { marketcheck_price: 12_345.67, msrp: 30_000, comparables: { num_found: 0, listings: [] } } },
+    { success: true, service: 'price_prediction', data: { predicted_price: 12_345.67 } },
+  ])('supports prediction response shapes used by official provider parsers', async prediction => {
+    vi.mocked($fetch).mockResolvedValueOnce(decoded).mockResolvedValueOnce(prediction)
+    expect(await lookupAssetValuation(car)).toMatchObject({ value: 1_234_567, source: 'MarketCheck' })
+    expect($fetch).toHaveBeenCalledTimes(2)
+  })
+
+  it('uses documented price-model defaults for VIN-only requests without inventing decoded mileage', async () => {
+    vi.mocked($fetch).mockResolvedValueOnce(decoded).mockResolvedValueOnce({ predicted_price: 12_000 })
+    const result = await lookupAssetValuation({ type: 'car', vin: car.vin })
+    expect(result).toMatchObject({ value: 1_200_000, vehicle: { vin: car.vin, make: 'HONDA' } })
+    expect(result.vehicle?.mileage).toBeUndefined()
+    expect(result.vehicle?.zip).toBeUndefined()
+    expect($fetch).toHaveBeenNthCalledWith(2, 'https://api.marketcheck.com/v2/predict/car/us/marketcheck_price/comparables', {
+      query: { api_key: 'test-marketcheck-key', vin: car.vin, miles: 50_000, zip: '50501', dealer_type: 'independent' },
+      retry: 0, timeout: 5_000,
+    })
+  })
+
+  it.each([
+    { success: false, error: 'test-marketcheck-key', data: { marketcheck_price: 12_000 } },
+    { error: 'test-marketcheck-key', marketcheck_price: 12_000 },
+    { success: true, data: null },
+  ])('does not treat malformed or failed provider payloads as estimates', async prediction => {
+    vi.mocked($fetch).mockResolvedValueOnce(decoded).mockResolvedValueOnce(prediction)
+    const result = await lookupAssetValuation(car)
+    expect(result).toEqual({
+      vehicle: { vin: car.vin, mileage: car.mileage, zip: car.zip, year: 2003, make: 'HONDA', model: 'Accord', trim: 'EX' },
+      notice: valuationUnavailableNotice,
+    })
+    expect(JSON.stringify(result)).not.toContain('test-marketcheck-key')
   })
 
   it('returns decoded details without a configured price key', async () => {

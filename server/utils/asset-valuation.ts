@@ -53,12 +53,14 @@ async function valueCar(request: Extract<ValuationRequest, { type: 'car' }>): Pr
   const apiKey = process.env.MARKETCHECK_API_KEY
   if (!apiKey) return fallback
   try {
-    const result = object(await $fetch<unknown>('https://api.marketcheck.com/v2/predict/car/us/marketcheck', {
+    const result = object(await $fetch<unknown>('https://api.marketcheck.com/v2/predict/car/us/marketcheck_price/comparables', {
       ...fetchOptions,
       // This is independent-dealer retail pricing, not a private-party or trade-in estimate.
-      query: { api_key: apiKey, vin: request.vin, mileage: request.mileage, zip: request.zip, dealer_type: 'independent' },
+      query: { api_key: apiKey, vin: request.vin, miles: request.mileage ?? 50_000, zip: request.zip ?? '50501', dealer_type: 'independent' },
     }))
-    const value = cents(result.marketcheck_price)
+    if (result.success === false || result.error) return fallback
+    const prediction = result.data === undefined ? result : object(result.data)
+    const value = cents(prediction.marketcheck_price) ?? cents(prediction.predicted_price)
     return value === undefined ? fallback : { vehicle, value, source: 'MarketCheck', fetchedAt: new Date().toISOString() }
   } catch {
     return fallback

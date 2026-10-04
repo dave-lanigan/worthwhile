@@ -1,0 +1,14 @@
+
+> build
+> nuxt build
+
+┌  [36mBuilding Nuxt for production...[39m
+│
+●  [32mNuxt [1m4.5.2[22m[39m[90m (with [39m[90mNitro [1m2.13.4[22m[39m[90m, Vite [1m8.3.1[22m[39m[90m and Vue [1m3.5.43[22m[39m[90m)[39m
+[warn] [1m[31m[NUXT_B8003][39m[22m Nitro is not initialized yet: `useNitro()` was called before the `ready` hook ran.
+[2m╰▶[22m [2mfix:[22m Move the `useNitro()` call inside a hook that runs after initialization, such as `nuxt.hook('ready', () => { ... })`.
+│
+●  Nitro preset: [36mnode-server[39m
+[info] Building client...
+[info] [36mvite v8.3.1 [32mbuilding client environment for production...[36m[39m
+transforming...

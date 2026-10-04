@@ -67,6 +67,24 @@ test('VIN lookup prefills details, saves the override and only refreshes explici
   expect(requests[1]).toEqual(requests[0])
 })
 
+test('a VIN alone is enough to request an estimate with visible default assumptions', async ({ page }) => {
+  let calls = 0
+  await page.route('**/api/valuation', route => {
+    calls++
+    expect(route.request().postDataJSON()).toEqual({ type: 'car', vin: '1HGCM82633A004352' })
+    return route.fulfill({ json: { value: 1000000, source: 'MarketCheck', fetchedAt: '2026-10-01T00:00:00.000Z', vehicle: { vin: '1HGCM82633A004352', year: 2003, make: 'Honda', model: 'Accord', mileage: 50000, zip: '50501' } } })
+  })
+  await openAsset(page, 'Car')
+  await page.getByRole('tab', { name: 'Look up by VIN', exact: true }).click()
+  await expect(page.getByText(/If omitted, MarketCheck uses 50,000 miles and ZIP 50501/)).toBeVisible()
+  await page.getByLabel('VIN', { exact: true }).fill('1HGCM82633A004352')
+  await page.getByRole('button', { name: 'Look up estimate', exact: true }).click()
+  await expect(page.getByLabel('Market value (USD)')).toHaveValue('10000')
+  await page.getByRole('button', { name: 'Add car', exact: true }).click()
+  await expect(page.getByTestId('current-worth')).toHaveText('$10,000')
+  expect(calls).toBe(1)
+})
+
 test('address lookup preserves the linked loan and editable estimate', async ({ page }) => {
   let calls = 0
   await page.route('**/api/valuation', route => {

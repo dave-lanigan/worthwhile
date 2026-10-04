@@ -83,7 +83,7 @@ async function lookUpValue() {
   const originalValue = form.propertyValue
   const originalName = form.name
   const result = await lookup(isCar.value
-    ? { type: 'car', vin: details.vin.trim().toUpperCase(), mileage: details.mileage.trim() ? Number(details.mileage) : NaN, zip: details.zip.trim() }
+    ? { type: 'car', vin: details.vin.trim().toUpperCase(), mileage: optionalNumber(details.mileage), zip: details.zip.trim() || undefined }
     : { type: 'property', address: details.address.trim() })
   if (!result) return
   const fetchedDetails = { ...result.vehicle, ...result.propertyDetails }
@@ -181,10 +181,10 @@ function submit() {
               <div v-if="isCar" class="field"><Label for="entry-vin">VIN</Label><Input id="entry-vin" v-model="details.vin" maxlength="17" autocomplete="off" placeholder="17-character VIN" :disabled="valuing" /></div>
               <div v-else class="field"><Label for="entry-address">Street address</Label><Input id="entry-address" v-model="details.address" maxlength="300" autocomplete="street-address" placeholder="Street, city, state, ZIP" :disabled="valuing" /></div>
               <div v-if="isCar" class="form-columns">
-                <div class="field"><Label for="entry-mileage">Mileage</Label><Input id="entry-mileage" v-model="details.mileage" type="number" min="0" step="1" inputmode="numeric" :disabled="valuing" /></div>
-                <div class="field"><Label for="entry-zip">ZIP code</Label><Input id="entry-zip" v-model="details.zip" maxlength="5" inputmode="numeric" autocomplete="postal-code" :disabled="valuing" /></div>
+                <div class="field"><Label for="entry-mileage">Mileage</Label><Input id="entry-mileage" v-model="details.mileage" type="number" min="0" step="1" inputmode="numeric" placeholder="Optional" :disabled="valuing" /></div>
+                <div class="field"><Label for="entry-zip">ZIP code</Label><Input id="entry-zip" v-model="details.zip" maxlength="5" inputmode="numeric" autocomplete="postal-code" placeholder="Optional" :disabled="valuing" /></div>
               </div>
-              <p v-if="isCar" class="muted">Mileage and ZIP code are needed for a market estimate.</p>
+              <p v-if="isCar" class="muted">Add mileage and ZIP code for a local estimate. If omitted, MarketCheck uses 50,000 miles and ZIP 50501.</p>
               <Button type="button" class="w-full" :disabled="valuing" @click="lookUpValue">{{ valuing ? 'Looking up…' : valuation ? 'Refresh estimate' : 'Look up estimate' }}</Button>
             </TabsContent>
           </Tabs>
