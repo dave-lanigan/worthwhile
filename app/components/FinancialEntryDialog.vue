@@ -132,9 +132,7 @@ function submit() {
   }
   const base = { id: props.entry?.id ?? crypto.randomUUID(), name: form.name }
   if (isPhysicalAsset.value) {
-    const loan = isCar.value
-      ? props.entry && 'value' in props.entry ? props.entry.loan : undefined
-      : propertyLoanCents.value > 0 ? { balance: propertyLoanCents.value, apr: Number(form.loanApr), termMonths: Math.round(Number(form.loanTermYears) * 12), payment: propertyLoanPayment.value } : undefined
+    const loan = propertyLoanCents.value > 0 ? { balance: propertyLoanCents.value, apr: Number(form.loanApr), termMonths: Math.round(Number(form.loanTermYears) * 12), payment: propertyLoanPayment.value } : undefined
     const vin = details.vin.trim().toUpperCase()
     const mileage = optionalNumber(details.mileage)
     const vehicle = isCar.value ? { vin: /^[A-HJ-NPR-Z0-9]{17}$/.test(vin) ? vin : undefined, year: optionalNumber(details.year), make: details.make.trim() || undefined, model: details.model.trim() || undefined, trim: details.trim.trim() || undefined, mileage: mileage !== undefined && Number.isFinite(mileage) && mileage >= 0 && mileage <= 10_000_000 ? mileage : undefined, zip: /^\d{5}$/.test(details.zip.trim()) ? details.zip.trim() : undefined } : undefined
@@ -234,15 +232,15 @@ function submit() {
               </div>
             </template>
           </fieldset>
-          <fieldset v-if="isProperty" class="entry-fieldset">
+          <fieldset class="entry-fieldset">
             <legend>Loan</legend>
-            <div class="field"><Label for="entry-loan-balance">Outstanding balance (USD)</Label><Input id="entry-loan-balance" v-model="form.loanBalance" type="number" min="0" max="1000000000000" step="0.01" required inputmode="decimal" /><span class="muted">Enter 0 if the property is owned outright.</span></div>
+            <div class="field"><Label for="entry-loan-balance">Outstanding balance (USD)</Label><Input id="entry-loan-balance" v-model="form.loanBalance" type="number" min="0" max="1000000000000" step="0.01" required inputmode="decimal" /><span class="muted">Enter 0 if the {{ isCar ? 'car' : 'property' }} is owned outright.</span></div>
             <div v-if="propertyLoanCents > 0" class="form-columns">
               <div class="field"><Label for="entry-loan-apr">Interest APR (%)</Label><Input id="entry-loan-apr" v-model="form.loanApr" type="number" min="0" max="1000" step="0.01" required inputmode="decimal" /></div>
               <div class="field"><Label for="entry-loan-term">Remaining term (years)</Label><Input id="entry-loan-term" v-model="form.loanTermYears" type="number" min="0.08333333333333333" max="40" step="any" required inputmode="decimal" /></div>
             </div>
           </fieldset>
-          <div v-if="isProperty" class="income-projection property-summary" role="status" aria-live="polite">
+          <div class="income-projection property-summary" role="status" aria-live="polite">
             <div><span>Equity today</span><strong :class="{ negative: propertyEquity < 0 }" data-testid="property-equity">{{ money(propertyEquity, true) }}</strong></div>
             <div><span>Monthly loan payment</span><strong data-testid="property-payment">{{ propertyLoanCents > 0 ? (Number.isFinite(propertyLoanPayment) ? money(propertyLoanPayment, true) : '—') : money(0, true) }}</strong></div>
           </div>

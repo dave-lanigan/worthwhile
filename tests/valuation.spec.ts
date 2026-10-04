@@ -9,6 +9,40 @@ async function openAsset(page: Page, type: 'Car' | 'Real estate') {
 
 test.beforeEach(async ({ page }) => { await page.goto('/guest') })
 
+for (const type of ['Car', 'Real estate'] as const) {
+  test(`${type} supports adding, editing, and removing a linked loan`, async ({ page }) => {
+    await openAsset(page, type)
+    await page.getByLabel('Name', { exact: true }).fill('Financed asset')
+    await page.getByLabel('Market value (USD)').fill('12000')
+    await page.getByLabel('Outstanding balance (USD)').fill('6000')
+    await page.getByLabel('Interest APR (%)').fill('0')
+    await page.getByLabel('Remaining term (years)').fill('1')
+    const dialog = page.getByRole('dialog')
+    await expect(dialog.getByTestId('property-equity')).toHaveText('$6,000.00')
+    await expect(dialog.getByTestId('property-payment')).toHaveText('$500.00')
+    await page.getByRole('button', { name: type === 'Car' ? 'Add car' : 'Add property', exact: true }).click()
+    await expect(page.getByTestId('current-worth')).toHaveText('$6,000')
+    await page.getByRole('button', { name: 'Edit Financed asset', exact: true }).click()
+    await expect(page.getByLabel('Outstanding balance (USD)')).toHaveValue('6000')
+    await expect(page.getByLabel('Interest APR (%)')).toHaveValue('0')
+    await expect(page.getByLabel('Remaining term (years)')).toHaveValue('1')
+    await page.getByLabel('Outstanding balance (USD)').fill('15000')
+    await expect(dialog.getByTestId('property-equity')).toHaveText('-$3,000.00')
+    await expect(dialog.getByTestId('property-payment')).toHaveText('$1,250.00')
+    await page.getByRole('button', { name: 'Apply changes', exact: true }).click()
+    await expect(page.getByTestId('current-worth')).toHaveText('-$3,000')
+    await page.getByRole('button', { name: 'Edit Financed asset', exact: true }).click()
+    await expect(page.getByLabel('Outstanding balance (USD)')).toHaveValue('15000')
+    await page.getByLabel('Outstanding balance (USD)').fill('0')
+    await expect(page.getByLabel('Interest APR (%)')).toHaveCount(0)
+    await expect(dialog.getByTestId('property-payment')).toHaveText('$0.00')
+    await page.getByRole('button', { name: 'Apply changes', exact: true }).click()
+    await expect(page.getByTestId('current-worth')).toHaveText('$12,000')
+    await page.getByRole('button', { name: 'Edit Financed asset', exact: true }).click()
+    await expect(page.getByLabel('Outstanding balance (USD)')).toHaveValue('0')
+  })
+}
+
 test('manual car and home entry never calls valuation, including an outage', async ({ page }) => {
   let calls = 0
   await page.route('**/api/valuation', route => { calls++; return route.abort() })

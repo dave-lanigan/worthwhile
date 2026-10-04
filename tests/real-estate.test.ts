@@ -4,6 +4,22 @@ import { monthlyLoanPayment } from '../shared/utils/loan'
 import { projectNetWorth, simulateNetWorth } from '../shared/utils/projection'
 
 describe('real estate with a linked loan', () => {
+  it('counts a car loan toward debt and amortizes it alongside depreciation', () => {
+    const plan = emptyPlan()
+    plan.years = 2
+    plan.startingCash = 600000
+    plan.realEstate = [realEstateSchema.parse({
+      id: 'car', name: 'Car', assetType: 'car', value: 1200000, annualAppreciation: -15,
+      loan: { balance: 600000, apr: 0, termMonths: 12, payment: monthlyLoanPayment(600000, 0, 12) },
+    })]
+    const { points } = projectNetWorth(plan)
+    expect(points[0]).toMatchObject({ property: 1200000, debt: 600000, netWorth: 1200000 })
+    expect(points[1]).toMatchObject({ propertyDebt: 550000, payments: 50000 })
+    expect(points[12]!.property).toBeCloseTo(1020000, -2)
+    expect(points[12]!.propertyDebt).toBe(0)
+    expect(points[13]!.payments).toBe(0)
+  })
+
   it('counts equity (value minus outstanding loan) toward net worth today', () => {
     const plan = emptyPlan()
     plan.realEstate = [{ id: 'home', name: 'Home', value: 50000000, annualAppreciation: 0, loan: { balance: 30000000, apr: 6, termMonths: 360, payment: monthlyLoanPayment(30000000, 6, 360) } }]
