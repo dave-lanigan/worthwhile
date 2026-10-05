@@ -99,6 +99,44 @@ describe('libSQL plan storage', () => {
     }
   })
 
+  it('persists physical asset details and valuations without changing legacy assets or linked loans', async () => {
+    const directory = mkdtempSync(join(process.cwd(), '.plan-api-test-'))
+    const path = join(directory, 'plan.sqlite')
+    const repository = await createPlanRepository(path)
+    try {
+      const plan = emptyPlan()
+      plan.realEstate = [
+        { id: 'legacy', name: 'Legacy home', value: 30_000_000, annualAppreciation: 3 },
+        {
+          id: 'house', name: 'Home', value: 45_000_000, annualAppreciation: 3, assetType: 'property',
+          propertyDetails: { address: '123 Main St, Austin, TX 78701', bedrooms: 3, bathrooms: 2.5, squareFootage: 1900, yearBuilt: 1985 },
+          valuation: { source: 'RentCast', fetchedAt: '2026-10-04T00:00:00.000Z', value: 45_000_000 },
+          loan: { balance: 20_000_000, apr: 4, termMonths: 360, payment: 95_483 },
+        },
+        {
+          id: 'car', name: 'Car', value: 2_000_000, annualAppreciation: -10, assetType: 'car',
+          vehicle: { vin: '1HGCM82633A004352', year: 2003, make: 'Honda', model: 'Accord', trim: 'EX', mileage: 45_000, zip: '90210' },
+          valuation: { source: 'MarketCheck', fetchedAt: '2026-10-04T00:00:00.000Z', value: 2_000_000 },
+          loan: { balance: 1_000_000, apr: 5, termMonths: 48, payment: 23_029 },
+        },
+      ]
+      const saved = await repository.write('user_first', { plan, revision: 0 })
+      const profile = await repository.createProfile('user_first', { name: 'Assets', description: '', plan })
+      repository.close()
+      const reopened = await createPlanRepository(path)
+      try {
+        expect(await reopened.read('user_first')).toEqual(saved)
+        expect((await reopened.readProfilePlan('user_first', profile.id)).plan.realEstate).toEqual(plan.realEstate)
+        expect((await reopened.read('user_first')).plan.realEstate[0]).toEqual(plan.realEstate[0])
+      } finally {
+        reopened.close()
+      }
+    } finally {
+      repository.close()
+      rmSync(directory, { recursive: true, force: true })
+    }
+  })
+
   it('keeps named financial profiles isolated and revisioned', async () => {
     const repository = await createPlanRepository(':memory:')
     try {

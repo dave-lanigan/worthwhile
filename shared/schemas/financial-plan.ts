@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { assetValuationSchema, propertyDetailsSchema, vehicleSchema } from './valuation'
 
 const money = z.number().int().min(0).max(100_000_000_000_000)
 const entry = z.object({ id: z.string().min(1).max(100), name: z.string().trim().min(1).max(100) })
@@ -6,7 +7,15 @@ export const cashFlowSchema = entry.extend({ amount: money, frequency: z.enum(['
 export const investmentSchema = entry.extend({ balance: money, annualRoi: z.number().min(-100).max(1000), allocation: z.number().min(0).max(100).optional(), monthlyContribution: money.optional() }).refine(item => item.allocation === undefined || item.monthlyContribution === undefined, { message: 'Choose a percentage or a monthly amount, not both.' })
 export const liabilitySchema = entry.extend({ balance: money, apr: z.number().min(0).max(1000), payment: money, type: z.enum(['debt', 'loan']).optional(), termMonths: z.number().int().min(1).max(480).optional() }).refine(item => item.type !== 'loan' || item.termMonths !== undefined, { path: ['termMonths'], message: 'Loan duration is required.' })
 export const propertyLoanSchema = z.object({ balance: money, apr: z.number().min(0).max(1000), termMonths: z.number().int().min(1).max(480), payment: money })
-export const realEstateSchema = entry.extend({ value: money, annualAppreciation: z.number().min(-100).max(1000), loan: propertyLoanSchema.optional() })
+export const realEstateSchema = entry.extend({
+  value: money,
+  annualAppreciation: z.number().min(-100).max(1000),
+  loan: propertyLoanSchema.optional(),
+  assetType: z.enum(['property', 'car']).optional(),
+  vehicle: vehicleSchema.optional(),
+  propertyDetails: propertyDetailsSchema.optional(),
+  valuation: assetValuationSchema.optional(),
+})
 
 export const financialPlanSchema = z.object({
   startingCash: money,
@@ -81,7 +90,7 @@ export function examplePlan(): FinancialPlan {
     startingCash: 825000,
     years: 10,
     incomes: [
-      { id: 'example-salary', name: 'Jim Doe salary', amount: 780000, frequency: 'annual' },
+      { id: 'example-salary', name: 'Jim Doe salary', amount: 780000, frequency: 'monthly' },
       { id: 'example-freelance', name: 'Jim Doe freelance work', amount: 65000, frequency: 'annual' },
     ],
     investments: [
